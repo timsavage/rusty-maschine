@@ -5,13 +5,12 @@ use controller::{Colour, Controller};
 use hidapi::HidApi;
 use maschine_mikro_mk2::MaschineMikroMk2;
 
-const VID: u16 = 0x17cc;
-const PID: u16 = 0x1200; // Maschine Mikro V2
-
 fn main() {
     let api = HidApi::new().unwrap();
 
-    let mut ctlr = MaschineMikroMk2::new(api.open(VID, PID).expect("Cannot open device")).unwrap();
+    let mut ctlr = MaschineMikroMk2::new(
+        api.open(MaschineMikroMk2::VENDOR_ID, MaschineMikroMk2::PRODUCT_ID).expect("Cannot open device")
+    );
 
     println!(
         "Device Product: {}",
@@ -37,15 +36,15 @@ fn main() {
 
             ctlr.set_led_off(idx).ok();
             if ctlr.is_rgb_led(idx) {
-                idx = (idx + 3) % 0x4B;
+                idx = (idx + 3) % 0x4E;
             } else {
-                idx = (idx + 1) % 0x4B;
+                idx = (idx + 1) % 0x4E;
             }
 
             if ctlr.is_rgb_led(idx) {
                 ctlr.set_led(idx, Colour::random()).ok();
             } else {
-                ctlr.set_led(idx, Colour::on()).ok();
+                ctlr.set_led(idx, Colour::white()).ok();
             }
 
             last_update = std::time::Instant::now();

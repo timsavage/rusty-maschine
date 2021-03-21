@@ -2,6 +2,9 @@ use hidapi::HidError;
 use rand::Rng;
 
 
+///
+/// Common controller errors
+/// 
 #[derive(Debug)]
 pub enum Error {
     HidAPI(HidError),
@@ -30,6 +33,11 @@ impl From<HidError> for Error {
 }
 
 
+///
+/// Colour definition
+/// 
+/// Can represent RGB or Mono colours
+/// 
 pub struct Colour {
     red: u8,
     green: u8,
@@ -49,22 +57,24 @@ impl Colour {
     pub fn blue() -> Self {
         Colour::new(0, 0, 255)
     }
-    pub fn on() -> Self {
+    pub fn white() -> Self {
         Colour::new(255, 255, 255)
     }
-    pub fn off() -> Self {
+    pub fn black() -> Self {
         Colour::new(0, 0, 0)
     }
+    /// A random colour
     pub fn random() -> Self {
         let mut rng = rand::thread_rng();
         Colour::new(rng.gen::<u8>(), rng.gen::<u8>(), rng.gen::<u8>())
     }
 
+    /// "Monochome" representation of the colour
     pub fn as_mono(&self) -> u8 {
-        if (self.red > 128) | (self.green > 128) | (self.blue > 128) {
-            255
+        if (self.red > 0x7F) | (self.green > 0x7F) | (self.blue > 0x7F) {
+            0xFF
         } else {
-            0
+            0x00
         }
     }
 
@@ -74,6 +84,10 @@ impl Colour {
     }
 }
 
+
+///
+/// Common controller behaviours
+/// 
 pub trait Controller {
     /// Perform any update events with the contoller device
     fn tick(&mut self) -> Result<(), Error>;
@@ -81,9 +95,9 @@ pub trait Controller {
     /// Set the colour of an LED
     fn set_led(&mut self, led: u8, colour: Colour) -> Result<(), Error>;
 
-    /// Explicity turn an LED off
+    /// Explicity turn an LED off (black)
     fn set_led_off(&mut self, led: u8) -> Result<(), Error> {
-        self.set_led(led, Colour::off())
+        self.set_led(led, Colour::black())
     }
 
     /// The specified LED is an RGB led
