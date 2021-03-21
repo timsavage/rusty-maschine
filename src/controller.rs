@@ -1,4 +1,34 @@
+use hidapi::HidError;
 use rand::Rng;
+
+
+#[derive(Debug)]
+pub enum Error {
+    HidAPI(HidError),
+
+    /// Input buffer does not container the expected amount of data.
+    BufferUnderrun,
+
+    /// Unexpected control returned from hardware device
+    UnknownControl,
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match &*self {
+            Error::HidAPI(e)      => e.fmt(fmt),  // Pass on to HIDAPI interface
+            Error::BufferUnderrun => write!(fmt, "Buffer does not contain the expected amount of data"),
+            Error::UnknownControl => write!(fmt, "Unexpected control returned from hardware device"),
+        }        
+    }
+}
+
+impl From<HidError> for Error {
+    fn from(err: HidError) -> Error {
+        Error::HidAPI(err)
+    }
+}
+
 
 pub struct Colour {
     red: u8,
@@ -8,11 +38,7 @@ pub struct Colour {
 
 impl Colour {
     pub fn new(red: u8, green: u8, blue: u8) -> Self {
-        Colour {
-            red: red,
-            green: green,
-            blue: blue,
-        }
+        Colour { red, green, blue }
     }
     pub fn red() -> Self {
         Colour::new(255, 0, 0)
@@ -50,13 +76,13 @@ impl Colour {
 
 pub trait Controller {
     /// Perform any update events with the contoller device
-    fn tick(&mut self) -> Result<(), ()>;
+    fn tick(&mut self) -> Result<(), Error>;
 
     /// Set the colour of an LED
-    fn set_led(&mut self, led: u8, colour: Colour) -> Result<(), ()>;
+    fn set_led(&mut self, led: u8, colour: Colour) -> Result<(), Error>;
 
     /// Explicity turn an LED off
-    fn set_led_off(&mut self, led: u8) -> Result<(), ()> {
+    fn set_led_off(&mut self, led: u8) -> Result<(), Error> {
         self.set_led(led, Colour::off())
     }
 
