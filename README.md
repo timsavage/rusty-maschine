@@ -2,9 +2,11 @@
 
 This is a learning/experimentation project for Rust.
 
-Much of the protocl implementation details have been obtained from the cabl project.
+Much of the protocol implementation details have been gleaned from the [cabl](https://github.com/shaduzlabs/cabl) project.
 
-The ultimate end goal is to move this project onto amicrocontroller (likely the Raspberry Pi Pico) to use the controller to either output MIDI or act as a CV source or sequencer.
+The ultimate end goal is to move this project onto a microcontroller (likely the Raspberry Pi Pico) to use the controller to either output MIDI or act as a CV source or sequencer.
+
+> **Note** this is a first Rust project so will contain approaches that are non standard. And includes no tests (not quite got there yet!).
 
 ## Current status
 
@@ -25,6 +27,3 @@ ToDo:
 ## Implementation details
 
 Uses the hidapi crate to identify and integrate with USB HID interfaces.
-
-!Note! this is a first Rust project so will contain approaches that are non standard. And includes no tests (not quite got there yet!).
-- 
