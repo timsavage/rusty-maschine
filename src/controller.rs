@@ -2,29 +2,15 @@ mod colour;
 mod display;
 mod error;
 
-pub use colour::{
-    Colour,
-    BLACK,
-    WHITE,
-    RED,
-    GREEN,
-    BLUE,
-};
+pub use colour::{Colour, BLACK, BLUE, GREEN, RED, WHITE};
 
-pub use display::{
-    Display,
-    MonochromeDisplay,
-    Pixel,
-};
+pub use display::{Display, MonochromeDisplay, Pixel};
 
-pub use error::{
-    Error,
-};
-
+pub use error::Error;
 
 ///
 /// Common controller behaviours
-/// 
+///
 pub trait Controller {
     /// Perform any update events with the contoller device
     fn tick(&mut self) -> Result<(), Error>;

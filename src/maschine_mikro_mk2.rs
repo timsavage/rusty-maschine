@@ -4,7 +4,6 @@ use super::controller::{
     Controller, 
     Display,
     MonochromeDisplay, 
-    Pixel,
     Error, 
     Colour, 
     WHITE, 
@@ -47,10 +46,23 @@ pub const LED_DUPLICATE: u8 = 0x1A;
 pub const LED_SELECT: u8 = 0x1B;
 pub const LED_SOLO: u8 = 0x1C;
 pub const LED_MUTE: u8 = 0x1D;
-
 pub const LED_PAD13: u8 = 0x1E;
+pub const LED_PAD14: u8 = 0x21;
+pub const LED_PAD15: u8 = 0x24;
+pub const LED_PAD16: u8 = 0x27;
+pub const LED_PAD09: u8 = 0x2A;
+pub const LED_PAD10: u8 = 0x2D;
+pub const LED_PAD11: u8 = 0x30;
+pub const LED_PAD12: u8 = 0x33;
+pub const LED_PAD05: u8 = 0x36;
+pub const LED_PAD06: u8 = 0x39;
+pub const LED_PAD07: u8 = 0x3C;
+pub const LED_PAD08: u8 = 0x3F;
+pub const LED_PAD01: u8 = 0x42;
+pub const LED_PAD02: u8 = 0x45;
+pub const LED_PAD03: u8 = 0x48;
 pub const LED_PAD04: u8 = 0x4B;
-
+pub const LED_UNKNOWN: u8 = 0x4E;
 
 // Buttons
 pub const BUTTON_SHIFT: u8 = 0x00;
@@ -185,15 +197,16 @@ impl MaschineMikroMk2 {
             return Err(Error::BufferUnderrun);
         }
 
-        for idx in (0..64).step_by(2) {
+        for idx in (0..32).step_by(2) {
             let low_byte = buffer[idx];
             let high_byte = buffer[idx + 1];
             let pad = ((high_byte & 0xF0) >> 4) as usize;
-            self.pads_data[pad] = (((high_byte & 0x0F) as u16) << 8) | low_byte as u16;
+            let value = (((high_byte & 0x0F) as u16) << 8) | low_byte as u16;
+            self.pads_data[pad] = value;
 
-            if self.pads_data[pad] > 200 {
+            if value > 512 {
                 self.pads_status[pad] = true;
-                self.on_pad_changed(pad as u8, (self.pads_data[pad] >> 4) as u8, self.shift_pressed);
+                self.on_pad_changed(pad as u8, (value >> 4) as u8, self.shift_pressed);
             } else if self.pads_status[pad] {
                 self.pads_status[pad] = false;
                 self.on_pad_changed(pad as u8, 0, self.shift_pressed);
@@ -211,8 +224,46 @@ impl MaschineMikroMk2 {
         println!("Encoder: Direction: {}; Shift: {}", direction, shift);
     }
 
-    fn on_pad_changed(&self, pad: u8, velocity: u8, shift: bool) {
+    fn on_pad_changed(&mut self, pad: u8, velocity: u8, shift: bool) {
         println!("Pad: {}; Velocity: {}; Shift: {}", pad, velocity, shift);
+
+        let led = match pad {
+            0xC => LED_PAD01,
+            0xD => LED_PAD02,
+            0xE => LED_PAD03,
+            0xF => LED_PAD04,
+            0x8 => LED_PAD05,
+            0x9 => LED_PAD06,
+            0xA => LED_PAD07,
+            0xB => LED_PAD08,
+            0x4 => LED_PAD09,
+            0x5 => LED_PAD10,
+            0x6 => LED_PAD11,
+            0x7 => LED_PAD12,
+            0x0 => LED_PAD13,
+            0x1 => LED_PAD14,
+            0x2 => LED_PAD15,
+            0x3 => LED_PAD16,
+            _ => LED_UNKNOWN,
+        };
+
+        if led != LED_UNKNOWN {
+            let colour = if shift {
+                super::controller::WHITE
+            } else { 
+                match pad % 6 {
+                    0 => Colour::new(velocity, 0x00, 0x00),
+                    1 => Colour::new(velocity, velocity, 0x00),
+                    2 => Colour::new(0x00, velocity, 0x00),
+                    3 => Colour::new(0x00, velocity, velocity),
+                    4 => Colour::new(0x00, 0x00, velocity),
+                    5 => Colour::new(velocity, 0x00, velocity),
+                    _ => super::controller::BLACK,
+                }
+            };
+
+            self.set_led(led, colour).ok();
+        }
     }
 }
 
@@ -241,9 +292,9 @@ impl Controller for MaschineMikroMk2 {
             self.leds_dirty =
                 (r != self.leds[base]) | (g != self.leds[base + 1]) | (b != self.leds[base + 2]);
 
-            self.leds[base] = r;
-            self.leds[base + 1] = g;
-            self.leds[base + 2] = b;
+            self.leds[base] = r >> 1;
+            self.leds[base + 1] = g >> 1;
+            self.leds[base + 2] = b >> 1;
         } else {
             let m = colour.as_mono();
             self.leds_dirty = m != self.leds[base];
@@ -264,58 +315,6 @@ fn is_button_pressed(buffer: &[u8], button: u8) -> bool {
     let byte_idx = (button >> 3) as usize;
     (buffer[byte_idx] & (1 << (button % 8))) != 0
 }
-
-// #[repr(u8)]
-// #[derive(Copy, Clone, Debug, Eq, PartialEq, int_enum::IntEnum)]
-// pub enum Led {
-//     F1 = 0x00,
-//     F2 = 0x01,
-//     F3 = 0x02,
-//     Control = 0x03,
-//     Nav = 0x04,
-//     BrowseLeft = 0x05,
-//     BrowseRight = 0x06,
-//     Main = 0x07,
-//     Group = 0x08, // GroupG = 0x09, GroupB = 0x0A,
-//     Browse = 0x0B,
-//     Sampling = 0x0C,
-//     NoteRepeat = 0x0D,
-//     Restart = 0x0E,
-//     TransportLeft = 0x0F,
-//     TransportRight = 0x10,
-//     Grid = 0x11,
-//     Play = 0x12,
-//     Rec = 0x13,
-//     Erase = 0x14,
-//     Shift = 0x15,
-//     Scene = 0x16,
-//     Pattern = 0x17,
-//     PadMode = 0x18,
-//     View = 0x19,
-//     Duplicate = 0x1A,
-//     Select = 0x1B,
-//     Solo = 0x1C,
-//     Mute = 0x1D,
-
-//     Pad13 = 0x1E, // Pad13G = 0x1F, Pad13B = 0x20,
-//     Pad14 = 0x21, // Pad14G = 0x22, Pad14B = 0x23,
-//     Pad15 = 0x24, // Pad15G = 0x25, Pad15B = 0x26,
-//     Pad16 = 0x27, // Pad16G = 0x28, Pad16B = 0x29,
-//     Pad9 = 0x2A,  // Pad9G = 0x2B,  Pad9B = 0x2C,
-//     Pad10 = 0x2D, // Pad10G = 0x2E, Pad10B = 0x2F,
-//     Pad11 = 0x30, // Pad11G = 0x31, Pad11B = 0x32,
-//     Pad12 = 0x33, // Pad12G = 0x34, Pad12B = 0x35,
-//     Pad5 = 0x36,  // Pad5G = 0x37,  Pad5B = 0x38,
-//     Pad6 = 0x39,  // Pad6G = 0x3A,  Pad6B = 0x3B,
-//     Pad7 = 0x3C,  // Pad7G = 0x3D,  Pad7B = 0x3E,
-//     Pad8 = 0x3F,  // Pad8G = 0x40,  Pad8B = 0x41,
-//     Pad1 = 0x42,  // Pad1G = 0x43,  Pad1B = 0x44,
-//     Pad2 = 0x45,  // Pad2G = 0x46,  Pad2B = 0x47,
-//     Pad3 = 0x48,  // Pad3G = 0x49,  Pad3B = 0x4A,
-//     Pad4 = 0x4B,  // Pad4G = 0x4C,  Pad4B = 0x4D,
-
-//     Unknown = 0x4E,
-// }
 
 // #[repr(u8)]
 // #[derive(Copy, Clone, Debug, Eq, PartialEq, int_enum::IntEnum)]

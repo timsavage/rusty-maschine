@@ -1,65 +1,62 @@
 ///
 /// Display interface
-/// 
-
+///
 
 ///
 /// Basic display interface
-/// 
+///
 pub trait Display {
-    /// 
+    ///
     /// Width of the display
-    /// 
+    ///
     fn width(&self) -> usize;
 
     ///
     /// Height of the display
-    /// 
+    ///
     fn height(&self) -> usize;
 
-    /// 
+    ///
     /// Get display data
-    /// 
+    ///
     fn data_size(&self) -> usize;
 
-    /// 
+    ///
     /// Get display data
-    /// 
+    ///
     fn data(&self) -> &[u8];
 
     ///
     /// Data is dirty (has changed since last clear)
-    /// 
+    ///
     fn is_dirty(&self) -> bool;
 
     ///
     /// Clear the data dirty flag
-    /// 
+    ///
     fn clear_dirty_flag(&mut self);
 
     ///
     /// Invert all pixels
-    /// 
+    ///
     fn invert(&mut self);
 
-    /// 
+    ///
     /// Fill all pixels
-    /// 
+    ///
     fn fill(&mut self, state: Pixel);
 }
-
 
 pub enum Pixel {
     On,
     Off,
 }
 
-
 ///
 /// Monochome display that uses 1bpp for data display.
-/// 
+///
 /// Optimally the display width is a multiple of 8.
-/// 
+///
 pub struct MonochromeDisplay {
     width: usize,
     height: usize,
@@ -116,10 +113,10 @@ impl Display for MonochromeDisplay {
 impl MonochromeDisplay {
     pub fn new(width: usize, height: usize) -> Self {
         MonochromeDisplay {
-            width, 
+            width,
             height,
             buffer: vec![0; (width * height) / 8],
-            dirty: true
+            dirty: true,
         }
     }
 
@@ -145,7 +142,7 @@ impl MonochromeDisplay {
         if (x > self.width) | (y > self.height) {
             return None;
         }
-        
+
         let byte_index = (self.width * (y >> 3)) + x;
         let pixel = self.buffer[byte_index] >> ((y & 7) & 0x01);
         Some(if pixel == 0 { Pixel::Off } else { Pixel::On })
