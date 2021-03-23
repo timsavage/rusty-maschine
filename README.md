@@ -9,34 +9,35 @@ The ultimate end goal is to move this project onto a microcontroller (likely the
 Raspberry Pi Pico) to use the controller to either output MIDI or act as a CV source 
 or sequencer.
 
-> **Note** this is a first Rust project so will contain approaches that are non 
+> **NOTE:** this is a first Rust project so will contain approaches that are non 
 > standard. And includes no tests (not quite got there yet!).
 
 ## Current status
 
 Completed:
 
-- Controlling all LEDS
-- All buttons/encoders working
-- All pads working
+- Mono and RGB LED's working for all buttons
+- Button events being generated (including shift)
+- Encoder generating up/down events
+- Pads generating events as velocity changes.
+- Display initialising with fill/invert and get/set pixels
+- Error handling in place
 
 ToDo:
 
-- Display
+- Port parts of the Adafruit GFX library to work with the display buffer to provide
+  some graphics primitives
 - Translating button ID's into enums
 - Constants for magic numbers
-- Better error handling
-- Convert into a crate taht can be easily integrated into other applications (not 
+- Convert into a crate that can be easily integrated into other applications (not 
   there is a caveat regarding hidapi that only a single hidapi::Context can exist).
-
-## Implementation details
-
-Uses the hidapi crate to identify and integrate with USB HID interfaces.
 
 ## Development
 
-This code was developed on a Debian Linux based OS, instructions below may work on
-other distributions.
+> **NOTE:** This code was developed on a Debian Linux based OS, instructions below may work 
+> on other distributions.
+
+Uses the hidapi wrapper as the interfaces to the USB device.
 
 There are two approaches to getting a debugger running you can either run an 
 *lldb-server* as root (which is risky) or the better option of configuring *udev* 
