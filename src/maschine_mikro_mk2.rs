@@ -62,6 +62,34 @@ pub const LED_PAD04: u8 = 0x4B;
 
 // Buttons
 pub const BUTTON_SHIFT: u8 = 0x00;
+pub const BUTTON_ERASE: u8 = 0x01;
+pub const BUTTON_REC: u8 = 0x02;
+pub const BUTTON_PLAY: u8 = 0x03;
+pub const BUTTON_GRID: u8 = 0x04;
+pub const BUTTON_TRANSPORT_RIGHT: u8 = 0x05;
+pub const BUTTON_TRANSPORT_LEFT: u8 = 0x06;
+pub const BUTTON_RESTART: u8 = 0x07;
+pub const BUTTON_MAIN_ENCODER: u8 = 0x0B;
+pub const BUTTON_NOTE_REPEAT: u8 = 0x0C;
+pub const BUTTON_SAMPLING: u8 = 0x0D;
+pub const BUTTON_BROWSE: u8 = 0x0E;
+pub const BUTTON_GROUP: u8 = 0x0F;
+pub const BUTTON_MAIN: u8 = 0x10;
+pub const BUTTON_BROWSE_RIGHT: u8 = 0x11;
+pub const BUTTON_BROWSE_LEFT: u8 = 0x12;
+pub const BUTTON_NAV: u8 = 0x13;
+pub const BUTTON_CONTROL: u8 = 0x14;
+pub const BUTTON_F3: u8 = 0x15;
+pub const BUTTON_F2: u8 = 0x16;
+pub const BUTTON_F1: u8 = 0x17;
+pub const BUTTON_MUTE: u8 = 0x18;
+pub const BUTTON_SOLO: u8 = 0x19;
+pub const BUTTON_SELECT: u8 = 0x1A;
+pub const BUTTON_DUPLICATE: u8 = 0x1B;
+pub const BUTTON_VIEW: u8 = 0x1C;
+pub const BUTTON_PAD_MODE: u8 = 0x1D;
+pub const BUTTON_PATTERN: u8 = 0x1E;
+pub const BUTTON_SCENE: u8 = 0x1F;
 pub const BUTTON_NONE: u8 = 0x20;
 
 ///
@@ -175,7 +203,11 @@ impl MaschineMikroMk2 {
                     self.shift_pressed = button_pressed;
                     self.set_led(LED_SHIFT, if button_pressed { WHITE } else { BLACK });
                 } else {
-                    self.on_button_change(btn, button_pressed, self.shift_pressed);
+                    self.on_button_change(
+                        self.as_device_button(btn),
+                        button_pressed,
+                        self.shift_pressed,
+                    );
                 }
             }
         }
@@ -218,8 +250,13 @@ impl MaschineMikroMk2 {
         Ok(())
     }
 
-    fn on_button_change(&self, button: u8, pressed: bool, shift: bool) {
-        println!("Button: {}; Pressed: {}; Shift: {}", button, pressed, shift);
+    fn on_button_change(&mut self, button: Button, pressed: bool, shift: bool) {
+        println!(
+            "Button: {:?}; Pressed: {}; Shift: {}",
+            button, pressed, shift
+        );
+
+        self.set_button_led(button, if pressed | shift { WHITE } else { BLACK });
     }
 
     fn on_encoder_change(&self, _encoder: u8, direction: bool, shift: bool) {
@@ -271,6 +308,41 @@ impl MaschineMikroMk2 {
     /// Determine if an LED is RGB or Mono
     fn is_rgb_led(&self, led: u8) -> bool {
         (led == LED_GROUP) | (LED_PAD13..=LED_PAD04).contains(&led)
+    }
+
+    /// Convert a button code into a button enum
+    fn as_device_button(&self, button: u8) -> Button {
+        match button {
+            BUTTON_ERASE => Button::Erase,
+            BUTTON_REC => Button::Rec,
+            BUTTON_PLAY => Button::Play,
+            BUTTON_GRID => Button::Grid,
+            BUTTON_TRANSPORT_RIGHT => Button::TransportRight,
+            BUTTON_TRANSPORT_LEFT => Button::TransportLeft,
+            BUTTON_RESTART => Button::Restart,
+            BUTTON_MAIN_ENCODER => Button::MainEncoder,
+            BUTTON_NOTE_REPEAT => Button::NoteRepeat,
+            BUTTON_SAMPLING => Button::Sampling,
+            BUTTON_BROWSE => Button::Browse,
+            BUTTON_GROUP => Button::Group,
+            BUTTON_MAIN => Button::Main,
+            BUTTON_BROWSE_RIGHT => Button::BrowseRight,
+            BUTTON_BROWSE_LEFT => Button::BrowseLeft,
+            BUTTON_NAV => Button::Nav,
+            BUTTON_CONTROL => Button::Control,
+            BUTTON_F3 => Button::F3,
+            BUTTON_F2 => Button::F2,
+            BUTTON_F1 => Button::F1,
+            BUTTON_MUTE => Button::Mute,
+            BUTTON_SOLO => Button::Solo,
+            BUTTON_SELECT => Button::Select,
+            BUTTON_DUPLICATE => Button::Duplicate,
+            BUTTON_VIEW => Button::View,
+            BUTTON_PAD_MODE => Button::PadMode,
+            BUTTON_PATTERN => Button::Pattern,
+            BUTTON_SCENE => Button::Scene,
+            _ => Button::Unknown,
+        }
     }
 
     /// Convert a button into a LED index
@@ -346,11 +418,7 @@ impl Controller for MaschineMikroMk2 {
         };
     }
 
-    fn tick(
-        &mut self,
-        on_button: OnButtonChange,
-        on_encoder: OnEncoderChange,
-    ) -> Result<(), Error> {
+    fn tick(&mut self) -> Result<(), Error> {
         if self.tick_state == 0 {
             self.send_frame()?;
         } else if self.tick_state == 1 {

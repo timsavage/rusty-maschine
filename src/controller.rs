@@ -26,10 +26,7 @@ pub trait Controller {
     ///
     fn set_pad_led(&mut self, pad: u8, colour: Colour);
 
-    // /// Perform any update events with the controller device
-    // fn tick(&mut self) -> Result<(), Error>;
-
     /// Perform any update events with the controller device
-    fn tick(&mut self, on_button: OnButtonChange, on_encoder: OnEncoderChange) -> Result<(), Error>;
+    fn tick(&mut self) -> Result<(), Error>;
 
 }

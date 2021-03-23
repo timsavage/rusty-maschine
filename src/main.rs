@@ -49,6 +49,6 @@ fn main() {
     );
 
     loop {
-        ctlr.tick(on_button_change, on_encoder_change).unwrap();
+        ctlr.tick().unwrap();
     }
 }
