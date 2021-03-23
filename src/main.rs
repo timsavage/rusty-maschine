@@ -4,6 +4,17 @@ mod maschine_mikro_mk2;
 use controller::{Controller, Display};
 use hidapi::HidApi;
 use maschine_mikro_mk2::MaschineMikroMk2;
+use crate::controller::Button;
+
+
+fn on_button_change(button: controller::Button, pressed: bool, shift: bool) {
+
+}
+
+
+fn on_encoder_change(encoder: u8, direction: controller::Direction, shift: bool) {
+
+}
 
 fn main() {
     let api = HidApi::new().unwrap();
@@ -13,7 +24,7 @@ fn main() {
             .expect("Cannot open device"),
     );
     ctlr.display.fill(controller::Pixel::Off);
-    ctlr.set_led(0x1E, controller::RED).unwrap();
+    ctlr.set_button_led(Button::Play, controller::WHITE);
 
     println!(
         "Device Product: {}",
@@ -38,6 +49,6 @@ fn main() {
     );
 
     loop {
-        ctlr.tick().unwrap();
+        ctlr.tick(on_button_change, on_encoder_change).unwrap();
     }
 }

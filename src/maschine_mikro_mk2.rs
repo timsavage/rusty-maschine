@@ -1,14 +1,10 @@
 use hidapi::HidDevice;
 
 use super::controller::{
-    Controller, 
-    Display,
-    MonochromeDisplay, 
-    Error, 
-    Colour, 
-    WHITE, 
-    BLACK
+    Colour, Controller, Display, Error, MonochromeDisplay, OnButtonChange, OnEncoderChange, BLACK,
+    WHITE,
 };
+use crate::controller::Button;
 
 const INPUT_BUFFER_SIZE: usize = 512;
 
@@ -62,20 +58,17 @@ pub const LED_PAD01: u8 = 0x42;
 pub const LED_PAD02: u8 = 0x45;
 pub const LED_PAD03: u8 = 0x48;
 pub const LED_PAD04: u8 = 0x4B;
-pub const LED_UNKNOWN: u8 = 0x4E;
+// pub const LED_UNKNOWN: u8 = 0x4E;
 
 // Buttons
 pub const BUTTON_SHIFT: u8 = 0x00;
 pub const BUTTON_NONE: u8 = 0x20;
 
-
-
-
 ///
-/// Maschine Mikro Mk2 Controller 
-/// 
+/// Maschine Mikro Mk2 Controller
+///
 /// Requires a valid HID device
-/// 
+///
 pub struct MaschineMikroMk2 {
     pub device: HidDevice,
     tick_state: u8,
@@ -113,7 +106,17 @@ impl MaschineMikroMk2 {
         if self.display.is_dirty() {
             for chunk in 0..4 {
                 // TODO: need definition of this header.
-                let mut buffer: Vec<u8> = vec![0xE0, 0x00, 0x00, (chunk * 2) as u8, 0x00, 0x80, 0x00, 0x02, 0x00];
+                let mut buffer: Vec<u8> = vec![
+                    0xE0,
+                    0x00,
+                    0x00,
+                    (chunk * 2) as u8,
+                    0x00,
+                    0x80,
+                    0x00,
+                    0x02,
+                    0x00,
+                ];
                 let x_offset = chunk * 256;
                 buffer.extend_from_slice(&self.display.data()[x_offset..(x_offset + 256)]);
                 self.device.write(buffer.as_slice())?;
@@ -145,11 +148,10 @@ impl MaschineMikroMk2 {
                 Ok(n) => n,
                 Err(e) => return Err(Error::HidAPI(e)),
             };
-            
+
             if bytes_read > 0 && buffer[0] == 0x01 {
                 self.process_buttons(&buffer[1..6])?;
-            }
-            else if (bytes_read > 0) && (buffer[0] == 0x20) && ((idx % 7) == 0) {
+            } else if (bytes_read > 0) && (buffer[0] == 0x20) && ((idx % 7) == 0) {
                 self.process_pads(&buffer[1..])?;
             }
         }
@@ -160,10 +162,10 @@ impl MaschineMikroMk2 {
     /// Process a buttons report message
     fn process_buttons(&mut self, buffer: &[u8]) -> Result<(), Error> {
         if buffer.len() < 5 {
-            return Err(Error::BufferUnderrun);
+            return Err(Error::InvalidReport);
         }
 
-        // Scan buttons 
+        // Scan buttons
         for btn in BUTTON_SHIFT..BUTTON_NONE {
             let button_pressed = is_button_pressed(&buffer, btn);
             if button_pressed != self.button_states[btn as usize] {
@@ -171,7 +173,7 @@ impl MaschineMikroMk2 {
 
                 if btn == BUTTON_SHIFT {
                     self.shift_pressed = button_pressed;
-                    self.set_led(LED_SHIFT, if button_pressed { WHITE } else { BLACK } )?;
+                    self.set_led(LED_SHIFT, if button_pressed { WHITE } else { BLACK });
                 } else {
                     self.on_button_change(btn, button_pressed, self.shift_pressed);
                 }
@@ -181,8 +183,8 @@ impl MaschineMikroMk2 {
         // Handle encoder data
         let encoder_value = buffer[4];
         if self.encoder_value != encoder_value {
-            let direction_up =
-                ((self.encoder_value < encoder_value) | ((self.encoder_value == 0x0f) && (encoder_value == 0x00)))
+            let direction_up = ((self.encoder_value < encoder_value)
+                | ((self.encoder_value == 0x0f) && (encoder_value == 0x00)))
                 & (!((self.encoder_value == 0x00) & (encoder_value == 0x0f)));
             self.encoder_value = encoder_value;
             self.on_encoder_change(0, direction_up, self.shift_pressed);
@@ -194,7 +196,7 @@ impl MaschineMikroMk2 {
     /// Process a pads report message
     fn process_pads(&mut self, buffer: &[u8]) -> Result<(), Error> {
         if buffer.len() < 64 {
-            return Err(Error::BufferUnderrun);
+            return Err(Error::InvalidReport);
         }
 
         for idx in (0..32).step_by(2) {
@@ -219,38 +221,18 @@ impl MaschineMikroMk2 {
     fn on_button_change(&self, button: u8, pressed: bool, shift: bool) {
         println!("Button: {}; Pressed: {}; Shift: {}", button, pressed, shift);
     }
-    
+
     fn on_encoder_change(&self, _encoder: u8, direction: bool, shift: bool) {
         println!("Encoder: Direction: {}; Shift: {}", direction, shift);
     }
 
     fn on_pad_changed(&mut self, pad: u8, velocity: u8, shift: bool) {
         println!("Pad: {}; Velocity: {}; Shift: {}", pad, velocity, shift);
-
-        let led = match pad {
-            0xC => LED_PAD01,
-            0xD => LED_PAD02,
-            0xE => LED_PAD03,
-            0xF => LED_PAD04,
-            0x8 => LED_PAD05,
-            0x9 => LED_PAD06,
-            0xA => LED_PAD07,
-            0xB => LED_PAD08,
-            0x4 => LED_PAD09,
-            0x5 => LED_PAD10,
-            0x6 => LED_PAD11,
-            0x7 => LED_PAD12,
-            0x0 => LED_PAD13,
-            0x1 => LED_PAD14,
-            0x2 => LED_PAD15,
-            0x3 => LED_PAD16,
-            _ => LED_UNKNOWN,
-        };
-
-        if led != LED_UNKNOWN {
+        let led = self.pad_to_led(pad);
+        if led.is_some() {
             let colour = if shift {
                 super::controller::WHITE
-            } else { 
+            } else {
                 match pad % 6 {
                     0 => Colour::new(velocity, 0x00, 0x00),
                     1 => Colour::new(velocity, velocity, 0x00),
@@ -262,28 +244,12 @@ impl MaschineMikroMk2 {
                 }
             };
 
-            self.set_led(led, colour).ok();
+            self.set_led(led.unwrap(), colour);
         }
-    }
-}
-
-impl Controller for MaschineMikroMk2 {
-    fn tick(&mut self) -> Result<(), Error> {
-        if self.tick_state == 0 {
-            self.send_frame()?;
-        } else if self.tick_state == 1 {
-            self.send_leds()?;
-        } else if self.tick_state == 2 {
-            self.read()?;
-        }
-
-        self.tick_state = (self.tick_state + 1) % 3;
-
-        Ok(())
     }
 
     /// Set the colour of an LED
-    fn set_led(&mut self, led: u8, colour: Colour) -> Result<(), Error> {
+    fn set_led(&mut self, led: u8, colour: Colour) {
         let base = led as usize;
 
         if self.is_rgb_led(led) {
@@ -300,57 +266,106 @@ impl Controller for MaschineMikroMk2 {
             self.leds_dirty = m != self.leds[base];
             self.leds[base] = m;
         }
-
-        Ok(())
     }
 
     /// Determine if an LED is RGB or Mono
     fn is_rgb_led(&self, led: u8) -> bool {
         (led == LED_GROUP) | (LED_PAD13..=LED_PAD04).contains(&led)
     }
+
+    /// Convert a button into a LED index
+    fn button_to_led(&self, button: Button) -> Option<u8> {
+        match button {
+            Button::Erase => Some(LED_ERASE),
+            Button::Rec => Some(LED_REC),
+            Button::Play => Some(LED_PLAY),
+            Button::Grid => Some(LED_GRID),
+            Button::TransportRight => Some(LED_TRANSPORT_RIGHT),
+            Button::TransportLeft => Some(LED_TRANSPORT_LEFT),
+            Button::Restart => Some(LED_RESTART),
+            Button::NoteRepeat => Some(LED_NOTE_REPEAT),
+            Button::Sampling => Some(LED_SAMPLING),
+            Button::Browse => Some(LED_BROWSE),
+            Button::Group => Some(LED_GROUP),
+            Button::Main => Some(LED_MAIN),
+            Button::BrowseRight => Some(LED_BROWSE_RIGHT),
+            Button::BrowseLeft => Some(LED_BROWSE_LEFT),
+            Button::Nav => Some(LED_NAV),
+            Button::Control => Some(LED_CONTROL),
+            Button::F3 => Some(LED_F3),
+            Button::F2 => Some(LED_F2),
+            Button::F1 => Some(LED_F1),
+            Button::Mute => Some(LED_MUTE),
+            Button::Solo => Some(LED_SOLO),
+            Button::Select => Some(LED_SELECT),
+            Button::Duplicate => Some(LED_DUPLICATE),
+            Button::View => Some(LED_VIEW),
+            Button::PadMode => Some(LED_PADMODE),
+            Button::Pattern => Some(LED_PATTERN),
+            Button::Scene => Some(LED_SCENE),
+            _ => None,
+        }
+    }
+
+    /// Convert a button into a LED index
+    fn pad_to_led(&self, pad: u8) -> Option<u8> {
+        match pad {
+            0x0 => Some(LED_PAD13),
+            0x1 => Some(LED_PAD14),
+            0x2 => Some(LED_PAD15),
+            0x3 => Some(LED_PAD16),
+            0x4 => Some(LED_PAD09),
+            0x5 => Some(LED_PAD10),
+            0x6 => Some(LED_PAD11),
+            0x7 => Some(LED_PAD12),
+            0x8 => Some(LED_PAD05),
+            0x9 => Some(LED_PAD06),
+            0xA => Some(LED_PAD07),
+            0xB => Some(LED_PAD08),
+            0xC => Some(LED_PAD01),
+            0xD => Some(LED_PAD02),
+            0xE => Some(LED_PAD03),
+            0xF => Some(LED_PAD04),
+            _ => None,
+        }
+    }
 }
 
+impl Controller for MaschineMikroMk2 {
+    fn set_button_led(&mut self, button: Button, colour: Colour) {
+        match self.button_to_led(button) {
+            Some(led) => self.set_led(led, colour),
+            None => (),
+        };
+    }
+
+    fn set_pad_led(&mut self, pad: u8, colour: Colour) {
+        match self.pad_to_led(pad) {
+            Some(led) => self.set_led(led, colour),
+            None => (),
+        };
+    }
+
+    fn tick(
+        &mut self,
+        on_button: OnButtonChange,
+        on_encoder: OnEncoderChange,
+    ) -> Result<(), Error> {
+        if self.tick_state == 0 {
+            self.send_frame()?;
+        } else if self.tick_state == 1 {
+            self.send_leds()?;
+        } else if self.tick_state == 2 {
+            self.read()?;
+        }
+
+        self.tick_state = (self.tick_state + 1) % 3;
+
+        Ok(())
+    }
+}
 
 fn is_button_pressed(buffer: &[u8], button: u8) -> bool {
     let byte_idx = (button >> 3) as usize;
     (buffer[byte_idx] & (1 << (button % 8))) != 0
 }
-
-// #[repr(u8)]
-// #[derive(Copy, Clone, Debug, Eq, PartialEq, int_enum::IntEnum)]
-// pub enum Button {
-//     Shift = 0x00,
-//     Erase = 0x01,
-//     Rec = 0x02,
-//     Play = 0x03,
-//     Grid = 0x04,
-//     TransportRight = 0x05,
-//     TransportLeft = 0x06,
-//     Restart = 0x07,
-
-//     MainEncoder = 0x0B,
-//     NoteRepeat = 0x0C,
-//     Sampling = 0x0D,
-//     Browse = 0x0E,
-//     Group = 0x0F,
-
-//     Main = 0x10,
-//     BrowseRight = 0x11,
-//     BrowseLeft = 0x12,
-//     Nav = 0x13,
-//     Control = 0x14,
-//     F3 = 0x15,
-//     F2 = 0x16,
-//     F1 = 0x17,
-
-//     Mute = 0x18,
-//     Solo = 0x19,
-//     Select = 0x1A,
-//     Duplicate = 0x1B,
-//     View = 0x1C,
-//     PadMode = 0x1D,
-//     Pattern = 0x1E,
-//     Scene = 0x1F,
-
-//     None = 0x20,
-// }

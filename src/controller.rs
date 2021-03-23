@@ -1,28 +1,35 @@
 mod colour;
 mod display;
 mod error;
+mod constants;
 
 pub use colour::{Colour, BLACK, BLUE, GREEN, RED, WHITE};
-
+pub use constants::{Button, Direction};
 pub use display::{Display, MonochromeDisplay, Pixel};
-
 pub use error::Error;
+
+pub type OnButtonChange = fn(button: Button, pressed: bool, shift: bool);
+pub type OnEncoderChange = fn(encoder: u8, direction: Direction, shift: bool);
 
 ///
 /// Common controller behaviours
 ///
 pub trait Controller {
-    /// Perform any update events with the contoller device
-    fn tick(&mut self) -> Result<(), Error>;
 
-    /// Set the colour of an LED
-    fn set_led(&mut self, led: u8, colour: Colour) -> Result<(), Error>;
+    ///
+    /// Set the State of an Button LED
+    ///
+    fn set_button_led(&mut self, button: Button, colour: Colour);
 
-    /// Explicity turn an LED off (black)
-    fn set_led_off(&mut self, led: u8) -> Result<(), Error> {
-        self.set_led(led, BLACK)
-    }
+    ///
+    /// Set the colour of a pad
+    ///
+    fn set_pad_led(&mut self, pad: u8, colour: Colour);
 
-    /// The specified LED is an RGB led
-    fn is_rgb_led(&self, led: u8) -> bool;
+    // /// Perform any update events with the controller device
+    // fn tick(&mut self) -> Result<(), Error>;
+
+    /// Perform any update events with the controller device
+    fn tick(&mut self, on_button: OnButtonChange, on_encoder: OnEncoderChange) -> Result<(), Error>;
+
 }

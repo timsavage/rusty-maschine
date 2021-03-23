@@ -22,7 +22,7 @@ impl Colour {
         Colour::new(rng.gen::<u8>(), rng.gen::<u8>(), rng.gen::<u8>())
     }
 
-    /// "Monochome" representation of the colour
+    /// "Monochrome" representation of the colour
     pub fn as_mono(&self) -> u8 {
         if (self.red > 0x7F) | (self.green > 0x7F) | (self.blue > 0x7F) {
             0xFF
@@ -61,4 +61,9 @@ pub const BLUE: Colour = Colour {
     red: 0x00,
     green: 0x00,
     blue: 0xFF,
+};
+pub const INVERT: Colour = Colour {
+    red: 0x01,
+    green: 0x01,
+    blue: 0x01,
 };
