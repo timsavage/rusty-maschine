@@ -4,6 +4,7 @@ use hidapi::HidError;
 /// Common controller errors
 ///
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum Error {
     HidAPI(HidError),
 

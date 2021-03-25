@@ -86,6 +86,13 @@ pub const BUTTON_PATTERN: u8 = 0x1E;
 pub const BUTTON_SCENE: u8 = 0x1F;
 pub const BUTTON_NONE: u8 = 0x20;
 
+const LED_COUNT: usize = 78;
+const BUTTON_COUNT: usize = 45;
+const PAD_COUNT: usize = 16;
+
+const DISPLAY_ADDR: u8 = 0xE0;
+const LED_ADDR: u8 = 0x80;
+
 ///
 /// Maschine Mikro Mk2 Controller
 ///
@@ -95,12 +102,12 @@ pub struct MaschineMikroMk2 {
     pub device: HidDevice,
     tick_state: u8,
     pub display: MonochromeCanvas,
-    leds: [u8; 78],
+    leds: [u8; LED_COUNT],
     leds_dirty: bool,
-    button_states: [bool; 45],
+    button_states: [bool; BUTTON_COUNT],
     shift_pressed: bool,
-    pads_data: [u16; 16],
-    pads_status: [bool; 16],
+    pads_data: [u16; PAD_COUNT],
+    pads_status: [bool; PAD_COUNT],
     encoder_value: u8,
     on_event: Option<EventCallback>,
 }
@@ -114,12 +121,12 @@ impl MaschineMikroMk2 {
             device,
             tick_state: 0,
             display: MonochromeCanvas::new(128, 64),
-            leds: [0; 78],
+            leds: [0; LED_COUNT],
             leds_dirty: true,
-            button_states: [false; 45],
+            button_states: [false; BUTTON_COUNT],
             shift_pressed: false,
-            pads_data: [0; 16],
-            pads_status: [false; 16],
+            pads_data: [0; PAD_COUNT],
+            pads_status: [false; PAD_COUNT],
             encoder_value: 0,
             on_event: None,
         }
@@ -131,15 +138,15 @@ impl MaschineMikroMk2 {
             for chunk in 0..4 {
                 // TODO: need definition of this header.
                 let mut buffer: Vec<u8> = vec![
-                    0xE0,
-                    0x00,
-                    0x00,
-                    (chunk * 2) as u8,
-                    0x00,
-                    0x80,
-                    0x00,
-                    0x02,
-                    0x00,
+                    DISPLAY_ADDR,
+                    0x00,  // ?
+                    0x00,  // ?
+                    (chunk << 1) as u8,  // Chunk ID
+                    0x00,  // ?
+                    0x80,  // Number of pixels (128)
+                    0x00,  // ?
+                    0x02,  // Display ID? Both 1 and 2 work
+                    0x00,  // ?
                 ];
                 let x_offset = chunk * 256;
                 buffer.extend_from_slice(&self.display.data()[x_offset..(x_offset + 256)]);
@@ -154,7 +161,7 @@ impl MaschineMikroMk2 {
     /// Update LEDs if the array has been updated
     fn send_leds(&mut self) -> Result<(), Error> {
         if self.leds_dirty {
-            let mut buffer: Vec<u8> = vec![0x80];
+            let mut buffer: Vec<u8> = vec![LED_ADDR];
             buffer.extend_from_slice(&self.leds);
             self.device.write(buffer.as_slice())?;
         }
