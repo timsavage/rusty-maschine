@@ -4,12 +4,13 @@ mod error;
 mod constants;
 
 pub use colour::{Colour, BLACK, BLUE, GREEN, RED, WHITE};
-pub use constants::{Button, Direction};
-pub use display::{Display, MonochromeDisplay, Pixel};
+pub use constants::{Button, Direction, Event};
+pub use display::{Canvas, MonochromeCanvas, Pixel};
 pub use error::Error;
 
-pub type OnButtonChange = fn(button: Button, pressed: bool, shift: bool);
-pub type OnEncoderChange = fn(encoder: u8, direction: Direction, shift: bool);
+
+pub type EventCallback = Box<dyn FnMut(Event)>;
+
 
 ///
 /// Common controller behaviours
@@ -26,7 +27,13 @@ pub trait Controller {
     ///
     fn set_pad_led(&mut self, pad: u8, colour: Colour);
 
+    ///
     /// Perform any update events with the controller device
+    ///
     fn tick(&mut self) -> Result<(), Error>;
 
+    ///
+    /// Register event callback
+    ///
+    fn on_event(&mut self, callback: EventCallback);
 }

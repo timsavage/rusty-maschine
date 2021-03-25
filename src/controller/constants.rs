@@ -1,3 +1,25 @@
+///
+/// Controller events
+///
+#[derive(Debug)]
+#[allow(dead_code)]
+pub enum Event {
+    ///
+    /// Button change (Button, Pressed, Shift)
+    ///
+    ButtonChange(Button, bool, bool),
+
+    ///
+    /// Encoder change (Encoder Number, Direction, Shift)
+    ///
+    EncoderChange(u8, Direction, bool),
+
+    ///
+    /// Pad change (Pad Number, Velocity, Shift)
+    ///
+    PadChange(u8, u8, bool),
+}
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum Button {

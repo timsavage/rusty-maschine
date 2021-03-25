@@ -1,17 +1,11 @@
 use hidapi::HidDevice;
 
 use super::controller::{
-    Colour, Controller, Display, Error, MonochromeDisplay, OnButtonChange, OnEncoderChange, BLACK,
-    WHITE,
+    Canvas, Colour, Controller, Error, Event, EventCallback, MonochromeCanvas, BLACK, WHITE,
 };
-use crate::controller::Button;
+use crate::controller::{Button, Direction};
 
 const INPUT_BUFFER_SIZE: usize = 512;
-
-// Endpoints
-// pub const EP_DISPLAY: u8 = 0x08;
-// pub const EP_OUTPUT: u8 = 0x01;
-// pub const EP_INPUT: u8 = 0x84;
 
 // LEDs
 pub const LED_F1: u8 = 0x00;
@@ -100,7 +94,7 @@ pub const BUTTON_NONE: u8 = 0x20;
 pub struct MaschineMikroMk2 {
     pub device: HidDevice,
     tick_state: u8,
-    pub display: MonochromeDisplay,
+    pub display: MonochromeCanvas,
     leds: [u8; 78],
     leds_dirty: bool,
     button_states: [bool; 45],
@@ -108,6 +102,7 @@ pub struct MaschineMikroMk2 {
     pads_data: [u16; 16],
     pads_status: [bool; 16],
     encoder_value: u8,
+    on_event: Option<EventCallback>,
 }
 
 impl MaschineMikroMk2 {
@@ -118,7 +113,7 @@ impl MaschineMikroMk2 {
         MaschineMikroMk2 {
             device,
             tick_state: 0,
-            display: MonochromeDisplay::new(128, 64),
+            display: MonochromeCanvas::new(128, 64),
             leds: [0; 78],
             leds_dirty: true,
             button_states: [false; 45],
@@ -126,6 +121,7 @@ impl MaschineMikroMk2 {
             pads_data: [0; 16],
             pads_status: [false; 16],
             encoder_value: 0,
+            on_event: None,
         }
     }
 
@@ -202,12 +198,11 @@ impl MaschineMikroMk2 {
                 if btn == BUTTON_SHIFT {
                     self.shift_pressed = button_pressed;
                     self.set_led(LED_SHIFT, if button_pressed { WHITE } else { BLACK });
-                } else {
-                    self.on_button_change(
-                        self.as_device_button(btn),
-                        button_pressed,
-                        self.shift_pressed,
-                    );
+                } else if self.on_event.is_some() {
+                    let button = self.as_device_button(btn);
+                    self.on_event.as_mut().unwrap()(Event::ButtonChange(
+                        button, button_pressed, self.shift_pressed,
+                    ));
                 }
             }
         }
@@ -215,11 +210,22 @@ impl MaschineMikroMk2 {
         // Handle encoder data
         let encoder_value = buffer[4];
         if self.encoder_value != encoder_value {
-            let direction_up = ((self.encoder_value < encoder_value)
+            let direction = if ((self.encoder_value < encoder_value)
                 | ((self.encoder_value == 0x0f) && (encoder_value == 0x00)))
-                & (!((self.encoder_value == 0x00) & (encoder_value == 0x0f)));
+                & (!((self.encoder_value == 0x00) & (encoder_value == 0x0f)))
+            {
+                Direction::Up
+            } else {
+                Direction::Down
+            };
             self.encoder_value = encoder_value;
-            self.on_encoder_change(0, direction_up, self.shift_pressed);
+            if self.on_event.is_some() {
+                self.on_event.as_mut().unwrap()(Event::EncoderChange(
+                    0,
+                    direction,
+                    self.shift_pressed,
+                ));
+            }
         }
 
         Ok(())
@@ -236,53 +242,24 @@ impl MaschineMikroMk2 {
             let high_byte = buffer[idx + 1];
             let pad = ((high_byte & 0xF0) >> 4) as usize;
             let value = (((high_byte & 0x0F) as u16) << 8) | low_byte as u16;
-            self.pads_data[pad] = value;
+            let pressed = value > 512;
 
-            if value > 512 {
-                self.pads_status[pad] = true;
-                self.on_pad_changed(pad as u8, (value >> 4) as u8, self.shift_pressed);
-            } else if self.pads_status[pad] {
-                self.pads_status[pad] = false;
-                self.on_pad_changed(pad as u8, 0, self.shift_pressed);
+            self.pads_data[pad] = value;
+            if pressed | self.pads_status[pad] {
+                self.pads_status[pad] = pressed;
+
+                // Trigger if callback is defined
+                if self.on_event.is_some() {
+                    self.on_event.as_mut().unwrap()(Event::PadChange(
+                        pad as u8,
+                        if pressed { (value >> 4) as u8 } else { 0 },
+                        self.shift_pressed,
+                    ));
+                }
             }
         }
 
         Ok(())
-    }
-
-    fn on_button_change(&mut self, button: Button, pressed: bool, shift: bool) {
-        println!(
-            "Button: {:?}; Pressed: {}; Shift: {}",
-            button, pressed, shift
-        );
-
-        self.set_button_led(button, if pressed | shift { WHITE } else { BLACK });
-    }
-
-    fn on_encoder_change(&self, _encoder: u8, direction: bool, shift: bool) {
-        println!("Encoder: Direction: {}; Shift: {}", direction, shift);
-    }
-
-    fn on_pad_changed(&mut self, pad: u8, velocity: u8, shift: bool) {
-        println!("Pad: {}; Velocity: {}; Shift: {}", pad, velocity, shift);
-        let led = self.pad_to_led(pad);
-        if led.is_some() {
-            let colour = if shift {
-                super::controller::WHITE
-            } else {
-                match pad % 6 {
-                    0 => Colour::new(velocity, 0x00, 0x00),
-                    1 => Colour::new(velocity, velocity, 0x00),
-                    2 => Colour::new(0x00, velocity, 0x00),
-                    3 => Colour::new(0x00, velocity, velocity),
-                    4 => Colour::new(0x00, 0x00, velocity),
-                    5 => Colour::new(velocity, 0x00, velocity),
-                    _ => super::controller::BLACK,
-                }
-            };
-
-            self.set_led(led.unwrap(), colour);
-        }
     }
 
     /// Set the colour of an LED
@@ -430,6 +407,10 @@ impl Controller for MaschineMikroMk2 {
         self.tick_state = (self.tick_state + 1) % 3;
 
         Ok(())
+    }
+
+    fn on_event(&mut self, callback: EventCallback) {
+        self.on_event = Some(callback);
     }
 }
 
