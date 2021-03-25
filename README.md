@@ -23,13 +23,12 @@ Completed:
 - Display initialising with fill/invert and get/set pixels
 - Error handling in place
 - Translating button ID's into enums
+- Callback/Observer for events
 
 ToDo:
 
-- Callback/Observer for events
 - Port parts of the Adafruit GFX library to work with the display buffer to provide
   some graphics primitives
-- Constants for magic numbers
 - Convert into a crate that can be easily integrated into other applications (not 
   there is a caveat regarding hidapi that only a single hidapi::Context can exist).
 
