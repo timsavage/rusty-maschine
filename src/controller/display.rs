@@ -3,9 +3,14 @@
 ///
 
 ///
+/// State of a pixel
+///
+pub enum Pixel { On, Off }
+
+///
 /// Basic display interface
 ///
-pub trait Display {
+pub trait Canvas<T> {
     ///
     /// Width of the display
     ///
@@ -42,29 +47,45 @@ pub trait Display {
     fn invert(&mut self);
 
     ///
-    /// Fill all pixels
+    /// Fill the entire canvas with a single colour
     ///
-    fn fill(&mut self, state: Pixel);
-}
+    fn fill(&mut self, colour: T);
 
-pub enum Pixel {
-    On,
-    Off,
+    ///
+    /// Set a pixel
+    ///
+    fn set_pixel(&mut self, x: usize, y: usize, colour: T);
+
+    ///
+    /// Get the state of a pixel
+    ///
+    fn pixel(&self, x: usize, y: usize) -> Option<T>;
 }
 
 ///
-/// Monochome display that uses 1bpp for data display.
+/// Monochrome display that uses 1bpp for data display.
 ///
 /// Optimally the display width is a multiple of 8.
 ///
-pub struct MonochromeDisplay {
+pub struct MonochromeCanvas {
     width: usize,
     height: usize,
     buffer: Vec<u8>,
     dirty: bool,
 }
 
-impl Display for MonochromeDisplay {
+impl MonochromeCanvas {
+    pub fn new(width: usize, height: usize) -> Self {
+        MonochromeCanvas {
+            width,
+            height,
+            buffer: vec![0; (width * height) / 8],
+            dirty: true,
+        }
+    }
+}
+
+impl Canvas<Pixel> for MonochromeCanvas {
     fn width(&self) -> usize {
         self.width
     }
@@ -96,41 +117,18 @@ impl Display for MonochromeDisplay {
         self.dirty = true;
     }
 
-    fn fill(&mut self, state: Pixel) {
-        let value = match state {
-            Pixel::On => 1u8,
-            Pixel::Off => 0u8,
-        };
-
-        for byte in self.buffer.iter_mut() {
-            *byte = value;
-        }
-
-        self.dirty = true;
-    }
-}
-
-impl MonochromeDisplay {
-    pub fn new(width: usize, height: usize) -> Self {
-        MonochromeDisplay {
-            width,
-            height,
-            buffer: vec![0; (width * height) / 8],
-            dirty: true,
-        }
-    }
-
-    fn set_pixel(&mut self, x: usize, y: usize, state: Pixel) {
+    ///
+    /// Set a pixel
+    ///
+    fn set_pixel(&mut self, x: usize, y: usize, colour: Pixel) {
         let width = self.width();
         let height = self.height();
-
         if (x > width) | (y > height) {
             return;
         }
 
         let byte_index = (width * (y >> 3)) + x;
-
-        match state {
+        match colour {
             Pixel::On => self.buffer[byte_index] |= 1 << (y & 7),
             Pixel::Off => self.buffer[byte_index] &= !(1 << (y & 7)),
         }
@@ -146,5 +144,21 @@ impl MonochromeDisplay {
         let byte_index = (self.width * (y >> 3)) + x;
         let pixel = self.buffer[byte_index] >> ((y & 7) & 0x01);
         Some(if pixel == 0 { Pixel::Off } else { Pixel::On })
+    }
+
+    ///
+    /// Fill the entire display with a Pixel
+    ///
+    fn fill(&mut self, colour: Pixel) {
+        let value = match colour {
+            Pixel::On => 1u8,
+            Pixel::Off => 0u8,
+        };
+
+        for byte in self.buffer.iter_mut() {
+            *byte = value;
+        }
+
+        self.dirty = true;
     }
 }
