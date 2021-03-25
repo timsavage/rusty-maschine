@@ -1,20 +1,11 @@
 mod controller;
 mod maschine_mikro_mk2;
 
-use controller::{Controller, Display};
+use controller::{Controller, Canvas, WHITE, BLACK};
 use hidapi::HidApi;
 use maschine_mikro_mk2::MaschineMikroMk2;
-use crate::controller::Button;
+use crate::controller::{Button, Pixel, Event};
 
-
-fn on_button_change(button: controller::Button, pressed: bool, shift: bool) {
-
-}
-
-
-fn on_encoder_change(encoder: u8, direction: controller::Direction, shift: bool) {
-
-}
 
 fn main() {
     let api = HidApi::new().unwrap();
@@ -24,7 +15,22 @@ fn main() {
             .expect("Cannot open device"),
     );
     ctlr.display.fill(controller::Pixel::Off);
-    ctlr.set_button_led(Button::Play, controller::WHITE);
+
+    let event_callback = |event: Event| {
+        println!("{:?}", event);
+        match event {
+            Event::ButtonChange(button, _pressed, _shift) => {
+
+            },
+            Event::PadChange(_pad, _velocity, _shift) => {
+
+            },
+            Event::EncoderChange(_encoder, _pressed, _shift) => {
+
+            }
+        }
+    };
+    ctlr.on_event(Box::new(event_callback));
 
     println!(
         "Device Product: {}",
