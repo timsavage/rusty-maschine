@@ -1,13 +1,15 @@
 mod controller;
+mod logo;
 mod maschine_mikro_mk2;
 
-use controller::{Controller, Canvas, WHITE, BLACK};
 use hidapi::HidApi;
+use controller::{Controller, Canvas, MonochromeCanvas, WHITE, BLACK, Button, Pixel, Event};
 use maschine_mikro_mk2::MaschineMikroMk2;
-use crate::controller::{Button, Pixel, Event};
 
 
 fn main() {
+    let logo = MonochromeCanvas::from_buffer(128, 64, &logo::LOGO);
+
     let api = HidApi::new().unwrap();
 
     let mut ctlr = MaschineMikroMk2::new(
@@ -15,6 +17,24 @@ fn main() {
             .expect("Cannot open device"),
     );
     ctlr.display.fill(controller::Pixel::Off);
+    ctlr.display.copy_from(&logo);
+    ctlr.set_button_led(Button::F1, WHITE);
+    ctlr.set_button_led(Button::F2, WHITE);
+    ctlr.set_button_led(Button::F3, WHITE);
+    ctlr.set_button_led(Button::Nav, WHITE);
+    ctlr.set_button_led(Button::BrowseLeft, WHITE);
+    ctlr.set_button_led(Button::BrowseRight, WHITE);
+
+    ctlr.set_pad_led(0, controller::GREEN);
+    ctlr.set_pad_led(3, controller::GREEN);
+    ctlr.set_pad_led(12, controller::GREEN);
+    ctlr.set_pad_led(15, controller::GREEN);
+    ctlr.set_pad_led(0, controller::GREEN);
+    ctlr.set_pad_led(5, controller::RED);
+    ctlr.set_pad_led(6, controller::RED);
+    ctlr.set_pad_led(9, controller::BLUE);
+    ctlr.set_pad_led(10, controller::BLUE);
+
 
     let event_callback = |event: Event| {
         println!("{:?}", event);
