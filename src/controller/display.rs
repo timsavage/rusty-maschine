@@ -60,6 +60,11 @@ pub trait Canvas<T> {
     /// Get the state of a pixel
     ///
     fn pixel(&self, x: usize, y: usize) -> Option<T>;
+
+    ///
+    /// Copy canvas
+    ///
+    fn copy_from(&mut self, canvas: &dyn Canvas<T>);
 }
 
 ///
@@ -80,6 +85,20 @@ impl MonochromeCanvas {
             width,
             height,
             buffer: vec![0; (width * height) / 8],
+            dirty: true,
+        }
+    }
+
+    pub fn from_buffer(width: usize, height: usize, buffer: &[u8]) -> Self {
+        let buffer_size = (width * height) / 8;
+        if buffer.len() != buffer_size {
+            panic!("Buffer must be {} bytes long", buffer_size)
+        }
+
+        MonochromeCanvas {
+            width,
+            height,
+            buffer: buffer.to_vec(),
             dirty: true,
         }
     }
@@ -118,6 +137,22 @@ impl Canvas<Pixel> for MonochromeCanvas {
     }
 
     ///
+    /// Fill the entire display with a Pixel
+    ///
+    fn fill(&mut self, colour: Pixel) {
+        let value = match colour {
+            Pixel::On => 1u8,
+            Pixel::Off => 0u8,
+        };
+
+        for byte in self.buffer.iter_mut() {
+            *byte = value;
+        }
+
+        self.dirty = true;
+    }
+
+    ///
     /// Set a pixel
     ///
     fn set_pixel(&mut self, x: usize, y: usize, colour: Pixel) {
@@ -147,18 +182,9 @@ impl Canvas<Pixel> for MonochromeCanvas {
     }
 
     ///
-    /// Fill the entire display with a Pixel
+    /// Copy canvas
     ///
-    fn fill(&mut self, colour: Pixel) {
-        let value = match colour {
-            Pixel::On => 1u8,
-            Pixel::Off => 0u8,
-        };
-
-        for byte in self.buffer.iter_mut() {
-            *byte = value;
-        }
-
-        self.dirty = true;
+    fn copy_from(&mut self, canvas: &dyn Canvas<Pixel>) {
+        self.buffer = canvas.data().to_vec();
     }
 }
