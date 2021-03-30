@@ -47,6 +47,11 @@ pub trait Canvas<T> {
     fn invert(&mut self);
 
     ///
+    /// Invert a row (8 pixels)
+    ///
+    fn invert_row(&mut self, row: usize);
+
+    ///
     /// Fill the entire canvas with a single colour
     ///
     fn fill(&mut self, colour: T);
@@ -137,6 +142,18 @@ impl Canvas<Pixel> for MonochromeCanvas {
     }
 
     ///
+    /// Invert a row (8 pixels)
+    ///
+    fn invert_row(&mut self, row: usize) {
+        let offset = row << 7;  // Multiply by 128
+        if offset < self.data_size() {
+            for idx in offset..(offset + self.width) {
+                self.buffer[idx] = !self.buffer[idx];
+            }
+        }
+    }
+
+    ///
     /// Fill the entire display with a Pixel
     ///
     fn fill(&mut self, colour: Pixel) {
@@ -171,6 +188,9 @@ impl Canvas<Pixel> for MonochromeCanvas {
         self.dirty = true;
     }
 
+    ///
+    /// Get state of a pixel
+    ///
     fn pixel(&self, x: usize, y: usize) -> Option<Pixel> {
         if (x > self.width) | (y > self.height) {
             return None;
