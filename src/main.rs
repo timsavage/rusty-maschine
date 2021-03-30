@@ -3,7 +3,6 @@ use hidapi::HidApi;
 use crate::controller::{Colour, Controller, BLACK, WHITE};
 use controller::{Canvas, Event, EventContext, EventTask, MonochromeCanvas};
 use maschine_mikro_mk2::MaschineMikroMk2;
-
 mod controller;
 mod logo;
 mod maschine_mikro_mk2;
@@ -17,22 +16,6 @@ fn main() {
     );
     ctlr.display.fill(controller::Pixel::Off);
     ctlr.display.copy_from(&logo);
-    // ctlr.set_button_led(Button::F1, WHITE);
-    // ctlr.set_button_led(Button::F2, WHITE);
-    // ctlr.set_button_led(Button::F3, WHITE);
-    // ctlr.set_button_led(Button::Nav, WHITE);
-    // ctlr.set_button_led(Button::BrowseLeft, WHITE);
-    // ctlr.set_button_led(Button::BrowseRight, WHITE);
-    //
-    // ctlr.set_pad_led(0, controller::GREEN);
-    // ctlr.set_pad_led(3, controller::GREEN);
-    // ctlr.set_pad_led(12, controller::GREEN);
-    // ctlr.set_pad_led(15, controller::GREEN);
-    // ctlr.set_pad_led(0, controller::GREEN);
-    // ctlr.set_pad_led(5, controller::RED);
-    // ctlr.set_pad_led(6, controller::RED);
-    // ctlr.set_pad_led(9, controller::BLUE);
-    // ctlr.set_pad_led(10, controller::BLUE);
 
     println!(
         "Device Product: {}",
