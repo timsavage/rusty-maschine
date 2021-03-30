@@ -1,9 +1,8 @@
 use hidapi::HidDevice;
 
-use super::controller::{
-    Canvas, Colour, Controller, Error, Event, EventCallback, MonochromeCanvas, BLACK, WHITE,
-};
-use crate::controller::{Button, Direction};
+use super::controller::{Button, Direction, Event};
+use super::controller::{Canvas, Colour, Controller, Error, MonochromeCanvas, BLACK, WHITE};
+use crate::controller::{EventContext, EventTask};
 
 const INPUT_BUFFER_SIZE: usize = 512;
 
@@ -109,7 +108,6 @@ pub struct MaschineMikroMk2 {
     pads_data: [u16; PAD_COUNT],
     pads_status: [bool; PAD_COUNT],
     encoder_value: u8,
-    on_event: Option<EventCallback>,
 }
 
 impl MaschineMikroMk2 {
@@ -128,27 +126,27 @@ impl MaschineMikroMk2 {
             pads_data: [0; PAD_COUNT],
             pads_status: [false; PAD_COUNT],
             encoder_value: 0,
-            on_event: None,
         }
     }
 
     /// Send a display frame for the graphics panel
     fn send_frame(&mut self) -> Result<(), Error> {
         if self.display.is_dirty() {
-            for chunk in 0..4 {
-                // TODO: need definition of this header.
+            for row in (0..8).step_by(2) {
+                // The number of referenced bytes must be <= 256
+                // Eg Column width * number of rows
                 let mut buffer: Vec<u8> = vec![
                     DISPLAY_ADDR,
-                    0x00,  // ?
-                    0x00,  // ?
-                    (chunk << 1) as u8,  // Chunk ID
-                    0x00,  // ?
-                    0x80,  // Number of pixels (128)
-                    0x00,  // ?
-                    0x02,  // Display ID? Both 1 and 2 work
-                    0x00,  // ?
+                    0x00,      // Column offset
+                    0x00,      // ?
+                    row as u8, // Row (a row is 8 pixels high)
+                    0x00,      // ?
+                    0x80,      // Columns per row, 128 is full width
+                    0x00,      // ?
+                    0x02,      // Number of rows
+                    0x00,      // ?
                 ];
-                let x_offset = chunk * 256;
+                let x_offset = row * 128;
                 buffer.extend_from_slice(&self.display.data()[x_offset..(x_offset + 256)]);
                 self.device.write(buffer.as_slice())?;
             }
@@ -171,7 +169,7 @@ impl MaschineMikroMk2 {
     }
 
     /// Read incoming reports from the device
-    fn read(&mut self) -> Result<(), Error> {
+    fn read(&mut self, context: &mut EventContext) -> Result<(), Error> {
         let mut buffer = [0u8; INPUT_BUFFER_SIZE];
 
         for idx in 0..32 {
@@ -181,9 +179,9 @@ impl MaschineMikroMk2 {
             };
 
             if bytes_read > 0 && buffer[0] == 0x01 {
-                self.process_buttons(&buffer[1..6])?;
+                self.process_buttons(&buffer[1..6], context)?;
             } else if (bytes_read > 0) && (buffer[0] == 0x20) && ((idx % 7) == 0) {
-                self.process_pads(&buffer[1..])?;
+                self.process_pads(&buffer[1..], context)?;
             }
         }
 
@@ -191,7 +189,7 @@ impl MaschineMikroMk2 {
     }
 
     /// Process a buttons report message
-    fn process_buttons(&mut self, buffer: &[u8]) -> Result<(), Error> {
+    fn process_buttons(&mut self, buffer: &[u8], context: &mut EventContext) -> Result<(), Error> {
         if buffer.len() < 5 {
             return Err(Error::InvalidReport);
         }
@@ -205,9 +203,9 @@ impl MaschineMikroMk2 {
                 if btn == BUTTON_SHIFT {
                     self.shift_pressed = button_pressed;
                     self.set_led(LED_SHIFT, if button_pressed { WHITE } else { BLACK });
-                } else if self.on_event.is_some() {
+                } else {
                     let button = self.as_device_button(btn);
-                    self.on_event.as_mut().unwrap()(Event::ButtonChange(
+                    context.add_event(Event::ButtonChange(
                         button, button_pressed, self.shift_pressed,
                     ));
                 }
@@ -226,20 +224,14 @@ impl MaschineMikroMk2 {
                 Direction::Down
             };
             self.encoder_value = encoder_value;
-            if self.on_event.is_some() {
-                self.on_event.as_mut().unwrap()(Event::EncoderChange(
-                    0,
-                    direction,
-                    self.shift_pressed,
-                ));
-            }
+            context.add_event(Event::EncoderChange(0, direction, self.shift_pressed));
         }
 
         Ok(())
     }
 
     /// Process a pads report message
-    fn process_pads(&mut self, buffer: &[u8]) -> Result<(), Error> {
+    fn process_pads(&mut self, buffer: &[u8], context: &mut EventContext) -> Result<(), Error> {
         if buffer.len() < 64 {
             return Err(Error::InvalidReport);
         }
@@ -254,15 +246,11 @@ impl MaschineMikroMk2 {
             self.pads_data[pad] = value;
             if pressed | self.pads_status[pad] {
                 self.pads_status[pad] = pressed;
-
-                // Trigger if callback is defined
-                if self.on_event.is_some() {
-                    self.on_event.as_mut().unwrap()(Event::PadChange(
-                        pad as u8,
-                        if pressed { (value >> 4) as u8 } else { 0 },
-                        self.shift_pressed,
-                    ));
-                }
+                context.add_event(Event::PadChange(
+                    pad as u8,
+                    if pressed { (value >> 4) as u8 } else { 0 },
+                    self.shift_pressed,
+                ));
             }
         }
 
@@ -401,23 +389,21 @@ impl Controller for MaschineMikroMk2 {
             None => (),
         };
     }
+}
 
-    fn tick(&mut self) -> Result<(), Error> {
+impl EventTask for MaschineMikroMk2 {
+    fn tick(&mut self, context: &mut EventContext) -> Result<(), Error> {
         if self.tick_state == 0 {
             self.send_frame()?;
         } else if self.tick_state == 1 {
             self.send_leds()?;
         } else if self.tick_state == 2 {
-            self.read()?;
+            self.read(context)?;
         }
 
         self.tick_state = (self.tick_state + 1) % 3;
 
         Ok(())
-    }
-
-    fn on_event(&mut self, callback: EventCallback) {
-        self.on_event = Some(callback);
     }
 }
 
