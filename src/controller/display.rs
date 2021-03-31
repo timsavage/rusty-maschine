@@ -1,6 +1,8 @@
 ///
 /// Display interface
 ///
+use super::font::FONT;
+use crate::controller::font::FONT_WIDTH;
 
 ///
 /// State of a pixel
@@ -70,6 +72,11 @@ pub trait Canvas<T> {
     /// Copy canvas
     ///
     fn copy_from(&mut self, canvas: &dyn Canvas<T>);
+
+    ///
+    /// Print
+    ///
+    fn print(&mut self, text: &str, row: usize, col: usize);
 }
 
 ///
@@ -206,5 +213,19 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     fn copy_from(&mut self, canvas: &dyn Canvas<Pixel>) {
         self.buffer = canvas.data().to_vec();
+    }
+
+    ///
+    /// Print
+    ///
+    fn print(&mut self, text: &str, row: usize, col: usize) {
+        let bytes = text.as_bytes();
+
+        for idx in 0..text.len() {
+            let char_idx: usize = ((bytes[idx] as usize) - 0x20) * FONT_WIDTH;
+            for slice in 0..FONT_WIDTH {
+                self.buffer[(row * self.width) + col + (idx * 6) + slice] = FONT[char_idx + slice];
+            }
+        }
     }
 }

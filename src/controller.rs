@@ -9,6 +9,7 @@ mod colour;
 mod constants;
 mod display;
 mod error;
+mod font;
 
 ///
 /// Common controller behaviours

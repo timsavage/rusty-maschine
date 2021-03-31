@@ -16,6 +16,7 @@ fn main() {
     );
     ctlr.display.fill(controller::Pixel::Off);
     ctlr.display.copy_from(&logo);
+    ctlr.display.print("Hello World&7*", 7, 0);
 
     println!(
         "Device Product: {}",
