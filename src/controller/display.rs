@@ -227,5 +227,6 @@ impl Canvas<Pixel> for MonochromeCanvas {
                 self.buffer[(row * self.width) + col + (idx * 6) + slice] = FONT[char_idx + slice];
             }
         }
+        self.dirty = true;
     }
 }
