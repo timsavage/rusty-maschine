@@ -1,6 +1,6 @@
 use hidapi::HidApi;
 
-use crate::controller::{Colour, Controller, BLACK, WHITE};
+use crate::controller::{Colour, Controller, BLACK, WHITE, Direction};
 use controller::{Canvas, Event, EventContext, EventTask, MonochromeCanvas};
 use maschine_mikro_mk2::MaschineMikroMk2;
 mod controller;
@@ -16,7 +16,7 @@ fn main() {
     );
     ctlr.display.fill(controller::Pixel::Off);
     ctlr.display.copy_from(&logo);
-    ctlr.display.print("Hello World&7*", 7, 0);
+    ctlr.display.print("Hello World", 7, 0);
 
     println!(
         "Device Product: {}",
@@ -40,6 +40,8 @@ fn main() {
             .unwrap_or_default()
     );
 
+    let mut count = 0i8;
+
     loop {
         let mut context = EventContext::new();
         ctlr.tick(&mut context).unwrap();
@@ -57,8 +59,15 @@ fn main() {
                         Colour::new(velocity, 0, 0)
                     };
                     ctlr.set_pad_led(pad, colour);
-                }
-                _ => {}
+                },
+                Event::EncoderChange(_encoder, dir, shift) => {
+                    count += match dir {
+                        Direction::Up => 1,
+                        Direction::Down => -1
+                    } * if shift { 10 } else { 1 };
+                    let value = format!("{:03}", count);
+                    ctlr.display.print(value.as_str(), 0, 0);
+                },
             }
         }
     }
