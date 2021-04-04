@@ -1,11 +1,12 @@
 ///
 /// Display interface
 ///
-use super::font::{FONT_5X7, FONT_5X7_WIDTH};
+use super::font::{FONT_5X6, FONT_5X6_WIDTH};
 
 ///
 /// State of a pixel
 ///
+#[derive(Clone)]
 pub enum Pixel {
     On,
     Off,
@@ -79,6 +80,11 @@ pub trait Canvas<T> {
     /// Print
     ///
     fn print(&mut self, text: &str, row: usize, col: usize, colour: Pixel);
+
+    ///
+    /// Print character
+    ///
+    fn print_char(&mut self, t: char, row: usize, col: usize, colour: Pixel);
 }
 
 ///
@@ -220,16 +226,26 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     /// Print
     ///
-    fn print(&mut self, text: &str, row: usize, col: usize, colour: Pixel) {
-        let bytes = text.as_bytes();
+    fn print(&mut self, s: &str, row: usize, col: usize, colour: Pixel) {
+        let bytes = s.as_bytes();
+        for idx in 0..s.len() {
+            self.print_char(bytes[idx] as char, row, col + (idx * 6), colour.clone())
+        }
+    }
 
-        for idx in 0..text.len() {
-            let char_idx: usize = ((bytes[idx] as usize) - 0x20) * FONT_5X7_WIDTH;
-            for slice in 0..FONT_5X7_WIDTH {
-                self.buffer[(row * self.width) + col + (idx * 6) + slice] = match colour {
-                    Pixel::On => FONT_5X7[char_idx + slice],
-                    Pixel::Off => !FONT_5X7[char_idx + slice]
-                };
+    ///
+    /// Print single character
+    ///
+    fn print_char(&mut self, c: char, row: usize, col: usize, colour: Pixel) {
+        let raw = c as usize;
+        if raw < 0x20 || raw > 0x7F {
+            return;
+        }
+        let char_idx = (raw - 0x20) * FONT_5X6_WIDTH;
+        for slice in 0..FONT_5X6_WIDTH {
+            self.buffer[(row * self.width) + col + slice] = match colour {
+                Pixel::On => FONT_5X6[char_idx + slice],
+                Pixel::Off => !FONT_5X6[char_idx + slice],
             }
         }
         self.dirty = true;
