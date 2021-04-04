@@ -1,8 +1,8 @@
 use hidapi::HidDevice;
 
-use super::controller::{Button, Direction, Event};
-use super::controller::{Canvas, Colour, Controller, Error, MonochromeCanvas, BLACK, WHITE};
-use crate::controller::{EventContext, EventTask};
+use crate::colour::Colour;
+use crate::controller::{Canvas, Controller, Error, MonochromeCanvas};
+use crate::events::{Button, Direction, Event, EventContext, EventTask};
 
 const INPUT_BUFFER_SIZE: usize = 512;
 
@@ -202,11 +202,20 @@ impl MaschineMikroMk2 {
 
                 if btn == BUTTON_SHIFT {
                     self.shift_pressed = button_pressed;
-                    self.set_led(LED_SHIFT, if button_pressed { WHITE } else { BLACK });
+                    self.set_led(
+                        LED_SHIFT,
+                        if button_pressed {
+                            Colour::WHITE
+                        } else {
+                            Colour::BLACK
+                        },
+                    );
                 } else {
                     let button = self.as_device_button(btn);
                     context.add_event(Event::ButtonChange(
-                        button, button_pressed, self.shift_pressed,
+                        button,
+                        button_pressed,
+                        self.shift_pressed,
                     ));
                 }
             }
@@ -271,7 +280,7 @@ impl MaschineMikroMk2 {
             self.leds[base + 1] = g >> 1;
             self.leds[base + 2] = b >> 1;
         } else {
-            let m = colour.as_mono();
+            let m = colour.as_1bit();
             self.leds_dirty = m != self.leds[base];
             self.leds[base] = m;
         }

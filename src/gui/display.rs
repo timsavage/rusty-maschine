@@ -1,13 +1,15 @@
 ///
 /// Display interface
 ///
-use super::font::FONT;
-use crate::controller::font::FONT_WIDTH;
+use super::font::{FONT_5X7, FONT_5X7_WIDTH};
 
 ///
 /// State of a pixel
 ///
-pub enum Pixel { On, Off }
+pub enum Pixel {
+    On,
+    Off,
+}
 
 ///
 /// Basic display interface
@@ -76,7 +78,7 @@ pub trait Canvas<T> {
     ///
     /// Print
     ///
-    fn print(&mut self, text: &str, row: usize, col: usize);
+    fn print(&mut self, text: &str, row: usize, col: usize, colour: Pixel);
 }
 
 ///
@@ -152,7 +154,7 @@ impl Canvas<Pixel> for MonochromeCanvas {
     /// Invert a row (8 pixels)
     ///
     fn invert_row(&mut self, row: usize) {
-        let offset = row << 7;  // Multiply by 128
+        let offset = row << 7; // Multiply by 128
         if offset < self.data_size() {
             for idx in offset..(offset + self.width) {
                 self.buffer[idx] = !self.buffer[idx];
@@ -165,8 +167,8 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     fn fill(&mut self, colour: Pixel) {
         let value = match colour {
-            Pixel::On => 1u8,
-            Pixel::Off => 0u8,
+            Pixel::On => 0xFFu8,
+            Pixel::Off => 0x00u8,
         };
 
         for byte in self.buffer.iter_mut() {
@@ -218,13 +220,16 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     /// Print
     ///
-    fn print(&mut self, text: &str, row: usize, col: usize) {
+    fn print(&mut self, text: &str, row: usize, col: usize, colour: Pixel) {
         let bytes = text.as_bytes();
 
         for idx in 0..text.len() {
-            let char_idx: usize = ((bytes[idx] as usize) - 0x20) * FONT_WIDTH;
-            for slice in 0..FONT_WIDTH {
-                self.buffer[(row * self.width) + col + (idx * 6) + slice] = FONT[char_idx + slice];
+            let char_idx: usize = ((bytes[idx] as usize) - 0x20) * FONT_5X7_WIDTH;
+            for slice in 0..FONT_5X7_WIDTH {
+                self.buffer[(row * self.width) + col + (idx * 6) + slice] = match colour {
+                    Pixel::On => FONT_5X7[char_idx + slice],
+                    Pixel::Off => !FONT_5X7[char_idx + slice]
+                };
             }
         }
         self.dirty = true;

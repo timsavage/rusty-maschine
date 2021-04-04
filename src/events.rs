@@ -1,5 +1,8 @@
+use std::collections::VecDeque;
+use crate::controller::Error;
+
 ///
-/// Controller events
+/// System Events
 ///
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -19,6 +22,18 @@ pub enum Event {
     ///
     PadChange(u8, u8, bool),
 }
+
+
+///
+/// Direction of encoder
+///
+#[derive(Debug)]
+#[allow(dead_code)]
+pub enum Direction {
+    Up,
+    Down,
+}
+
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -54,12 +69,32 @@ pub enum Button {
     Unknown,
 }
 
+
 ///
-/// Direction of encoder
+/// Context object for adding events
 ///
-#[derive(Debug)]
-#[allow(dead_code)]
-pub enum Direction {
-    Up,
-    Down,
+pub struct EventContext {
+    pub events: VecDeque<Event>,
+}
+
+impl EventContext {
+    pub fn new() -> Self {
+        EventContext {
+            events: VecDeque::new()
+        }
+    }
+
+    pub fn add_event(&mut self, event: Event) {
+        self.events.push_back(event);
+    }
+}
+
+///
+/// Generator for events
+///
+pub trait EventTask {
+    ///
+    /// Perform any update events with the controller device
+    ///
+    fn tick(&mut self, context: &mut EventContext) -> Result<(), Error>;
 }
