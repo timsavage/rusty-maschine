@@ -34,19 +34,21 @@ fn main() {
                 Event::ButtonChange(button, pressed, shift) => {
                     match button {
                         Button::MainEncoder => count = 0,
-                        Button::F1 => {
-                            if pressed {
-                                ctlr.display.invert()
-                            }
+                        Button::F1 => if pressed {
+                            ctlr.display.invert();
                         }
-                        Button::F2 => {
-                            if pressed {
-                                ctlr.display.fill(Pixel::On)
-                            }
+                        Button::F2 => if pressed {
+                            ctlr.display.fill(Pixel::On);
                         }
-                        Button::F3 => {
-                            if pressed {
-                                ctlr.display.fill(Pixel::Off)
+                        Button::F3 => if pressed {
+                            ctlr.display.fill(Pixel::Off);
+                        }
+                        Button::Nav => if pressed {
+                            ctlr.display.fill(Pixel::Off);
+                            for idx in 0..96 {
+                                let col = (idx % 21) * 6;
+                                let row = idx / 21;
+                                ctlr.display.print_char((idx as u8 + 0x20) as char, row, col, Pixel::On);
                             }
                         }
                         _ => {}
