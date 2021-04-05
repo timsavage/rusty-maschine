@@ -1,8 +1,7 @@
 use crate::colour::Colour;
 pub use crate::error::Error;
 use crate::events::{Button, EventTask};
-pub use crate::gui::display::{Canvas, MonochromeCanvas, Pixel};
-
+use crate::gui::display::{Canvas, MonochromeCanvas, Pixel};
 
 ///
 /// Common controller behaviours

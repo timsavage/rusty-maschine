@@ -1,8 +1,9 @@
 use hidapi::HidDevice;
 
 use crate::colour::Colour;
-use crate::controller::{Canvas, Controller, Error, MonochromeCanvas};
+use crate::controller::{Controller, Error};
 use crate::events::{Button, Direction, Event, EventContext, EventTask};
+use crate::gui::display::{MonochromeCanvas, Canvas};
 
 const INPUT_BUFFER_SIZE: usize = 512;
 

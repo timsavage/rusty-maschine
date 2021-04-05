@@ -1,10 +1,13 @@
 use hidapi::HidApi;
 
 use colour::Colour;
-use controller::{Canvas, Controller, MonochromeCanvas, Pixel};
+use controller::Controller;
 use devices::get_device;
-use events::{Button, Direction, Event, EventContext, EventTask};
+use events::{Button, Event, EventContext, EventTask};
 use gui::logo;
+use gui::ui::TextPanel;
+use gui::display::{MonochromeCanvas, Canvas, Pixel};
+use crate::gui::ui::{Control, EventHandler, Surface};
 
 mod colour;
 mod controller;
@@ -16,39 +19,55 @@ mod gui;
 fn main() {
     let hid_api = HidApi::new().unwrap();
     let mut ctlr = get_device(&hid_api).unwrap();
+    // let logo = MonochromeCanvas::from_buffer(128, 64, &logo::LOGO);
 
-    let logo = MonochromeCanvas::from_buffer(128, 64, &logo::LOGO);
-    ctlr.display.fill(controller::Pixel::Off);
-    ctlr.display.copy_from(&logo);
-    ctlr.display.print("Hello World", 7, 0, Pixel::On);
+    let mut surface: Surface<TextPanel> = Surface::new(ctlr.display.height(), ctlr.display.width());
 
-    let mut count = 0i8;
+    let mut panel = TextPanel::new();
+    panel.set_text("This\nis some\ntext\n\nHello\nWorld\n\nThis is a new\nworld\nof\nstuff");
+    surface.set_child(panel);
 
     loop {
+        surface.paint(&mut ctlr.display);
+
         let mut context = EventContext::new();
         ctlr.tick(&mut context).unwrap();
 
         while !context.events.is_empty() {
             let event = context.events.pop_front().unwrap();
+            surface.handle(&event);
+
             match event {
                 Event::ButtonChange(button, pressed, shift) => {
                     match button {
-                        Button::MainEncoder => count = 0,
-                        Button::F1 => if pressed {
-                            ctlr.display.invert();
+                        Button::F1 => {
+                            if pressed {
+                                ctlr.display.invert();
+                            }
                         }
-                        Button::F2 => if pressed {
-                            ctlr.display.fill(Pixel::On);
+                        Button::F2 => {
+                            if pressed {
+                                ctlr.display.fill(Pixel::On);
+                            }
                         }
-                        Button::F3 => if pressed {
-                            ctlr.display.fill(Pixel::Off);
+                        Button::F3 => {
+                            if pressed {
+                                ctlr.display.fill(Pixel::Off);
+                            }
                         }
-                        Button::Nav => if pressed {
-                            ctlr.display.fill(Pixel::Off);
-                            for idx in 0..96 {
-                                let col = (idx % 21) * 6;
-                                let row = idx / 21;
-                                ctlr.display.print_char((idx as u8 + 0x20) as char, row, col, Pixel::On);
+                        Button::Nav => {
+                            if pressed {
+                                ctlr.display.fill(Pixel::Off);
+                                for idx in 0..96 {
+                                    let col = (idx % 21) * 6;
+                                    let row = idx / 21;
+                                    ctlr.display.print_char(
+                                        (idx as u8 + 0x20) as char,
+                                        row,
+                                        col,
+                                        Pixel::On,
+                                    );
+                                }
                             }
                         }
                         _ => {}
@@ -70,14 +89,10 @@ fn main() {
                     };
                     ctlr.set_pad_led(pad, colour);
                 }
-                Event::EncoderChange(_encoder, dir, shift) => {
-                    count += match dir {
-                        Direction::Up => 1,
-                        Direction::Down => -1,
-                    } * if shift { 10 } else { 1 };
-                    let value = format!("{:03}", count);
-                    ctlr.display.print(value.as_str(), 0, 0, Pixel::Off);
-                }
+                // Event::EncoderChange(_encoder, dir, _shift) => {
+                //     ctlr.display.vscroll_rows(0, 7, dir);
+                // }
+                _ => {}
             }
         }
     }

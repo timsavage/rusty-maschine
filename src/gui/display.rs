@@ -2,6 +2,8 @@
 /// Display interface
 ///
 use super::font::{FONT_5X6, FONT_5X6_WIDTH};
+use crate::events::Direction;
+use std::cmp::{max, min};
 
 ///
 /// State of a pixel
@@ -15,7 +17,7 @@ pub enum Pixel {
 ///
 /// Basic display interface
 ///
-pub trait Canvas<T> {
+pub trait Canvas<T: Clone> {
     ///
     /// Width of the display
     ///
@@ -62,6 +64,11 @@ pub trait Canvas<T> {
     fn fill(&mut self, colour: T);
 
     ///
+    /// Fill the entire canvas with a single colour
+    ///
+    fn fill_row(&mut self, row: usize, colour: T);
+
+    ///
     /// Set a pixel
     ///
     fn set_pixel(&mut self, x: usize, y: usize, colour: T);
@@ -77,14 +84,34 @@ pub trait Canvas<T> {
     fn copy_from(&mut self, canvas: &dyn Canvas<T>);
 
     ///
-    /// Print
+    /// Print, handles newlines but not scrolling
     ///
-    fn print(&mut self, text: &str, row: usize, col: usize, colour: Pixel);
+    fn print(&mut self, s: &str, row: usize, col: usize, colour: T) {
+        let mut row = row;
+        let mut col = col;
+        for c in s.chars() {
+            match c {
+                '\n' => {
+                    row += 1;
+                    col = 0;
+                }
+                _ => {
+                    self.print_char(c, row, col, colour.clone());
+                    col += 6;
+                }
+            }
+        }
+    }
 
     ///
     /// Print character
     ///
-    fn print_char(&mut self, t: char, row: usize, col: usize, colour: Pixel);
+    fn print_char(&mut self, t: char, row: usize, col: usize, colour: T);
+
+    ///
+    /// Vertical scroll the rows in a particular direction
+    ///
+    fn vscroll_rows(&mut self, row_start: usize, row_end: usize, direction: Direction);
 }
 
 ///
@@ -160,11 +187,10 @@ impl Canvas<Pixel> for MonochromeCanvas {
     /// Invert a row (8 pixels)
     ///
     fn invert_row(&mut self, row: usize) {
-        let offset = row << 7; // Multiply by 128
-        if offset < self.data_size() {
-            for idx in offset..(offset + self.width) {
-                self.buffer[idx] = !self.buffer[idx];
-            }
+        let start = row * self.width;
+        let end = start + self.width;
+        for byte in self.buffer[start..end].iter_mut() {
+            *byte = !*byte;
         }
     }
 
@@ -178,6 +204,24 @@ impl Canvas<Pixel> for MonochromeCanvas {
         };
 
         for byte in self.buffer.iter_mut() {
+            *byte = value;
+        }
+
+        self.dirty = true;
+    }
+
+    ///
+    /// Fill the entire canvas with a single colour
+    ///
+    fn fill_row(&mut self, row: usize, colour: Pixel) {
+        let value = match colour {
+            Pixel::On => 0xFFu8,
+            Pixel::Off => 0x00u8,
+        };
+
+        let start = row * self.width;
+        let end = start + self.width;
+        for byte in self.buffer[start..end].iter_mut() {
             *byte = value;
         }
 
@@ -224,16 +268,6 @@ impl Canvas<Pixel> for MonochromeCanvas {
     }
 
     ///
-    /// Print
-    ///
-    fn print(&mut self, s: &str, row: usize, col: usize, colour: Pixel) {
-        let bytes = s.as_bytes();
-        for idx in 0..s.len() {
-            self.print_char(bytes[idx] as char, row, col + (idx * 6), colour.clone())
-        }
-    }
-
-    ///
     /// Print single character
     ///
     fn print_char(&mut self, c: char, row: usize, col: usize, colour: Pixel) {
@@ -246,6 +280,33 @@ impl Canvas<Pixel> for MonochromeCanvas {
             self.buffer[(row * self.width) + col + slice] = match colour {
                 Pixel::On => FONT_5X6[char_idx + slice],
                 Pixel::Off => !FONT_5X6[char_idx + slice],
+            }
+        }
+        self.dirty = true;
+    }
+
+    ///
+    /// Vertical scroll the rows in a particular direction
+    ///
+    fn vscroll_rows(&mut self, row_start: usize, row_end: usize, direction: Direction) {
+        let start = min(row_start, row_end) * self.width;
+        let end = max(row_start, row_end) * self.width;
+        match direction {
+            Direction::Up => {
+                for row in (start..end).rev() {
+                    self.buffer[row + self.width] = self.buffer[row];
+                }
+                for row in start..(start + self.width) {
+                    self.buffer[row] = 0;
+                }
+            }
+            Direction::Down => {
+                for row in start..end {
+                    self.buffer[row] = self.buffer[row + self.width];
+                }
+                for row in end..(end + self.width) {
+                    self.buffer[row] = 0;
+                }
             }
         }
         self.dirty = true;
