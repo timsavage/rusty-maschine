@@ -1,8 +1,9 @@
 ///
-/// Display interface
+/// # Display interface
 ///
 use super::font::{FONT_5X6, FONT_5X6_WIDTH};
 use crate::events::Direction;
+use crate::gui::font::FONT_5;
 use std::cmp::{max, min};
 
 ///
@@ -59,14 +60,22 @@ pub trait Canvas<T: Clone> {
     fn invert_row(&mut self, row: usize);
 
     ///
+    /// Invert part of a row (8 pixels)
+    ///
+    fn invert_row_slice(&mut self, row: usize, start_col: usize, end_col: usize);
+
+    ///
     /// Fill the entire canvas with a single colour
     ///
     fn fill(&mut self, colour: T);
 
     ///
-    /// Fill the entire canvas with a single colour
+    /// Fill an entire row with a single colour
     ///
     fn fill_row(&mut self, row: usize, colour: T);
+
+    /// Fill multiple rows with a single colour
+    fn fill_rows(&mut self, start_row: usize, end_row: usize, colour: Pixel);
 
     ///
     /// Set a pixel
@@ -96,8 +105,7 @@ pub trait Canvas<T: Clone> {
                     col = 0;
                 }
                 _ => {
-                    self.print_char(c, row, col, colour.clone());
-                    col += 6;
+                    col += self.print_char(c, row, col, colour.clone()) + 1;
                 }
             }
         }
@@ -106,7 +114,7 @@ pub trait Canvas<T: Clone> {
     ///
     /// Print character
     ///
-    fn print_char(&mut self, t: char, row: usize, col: usize, colour: T);
+    fn print_char(&mut self, t: char, row: usize, col: usize, colour: T) -> usize;
 
     ///
     /// Vertical scroll the rows in a particular direction
@@ -195,6 +203,17 @@ impl Canvas<Pixel> for MonochromeCanvas {
     }
 
     ///
+    /// Invert part of a row (8 pixels)
+    ///
+    fn invert_row_slice(&mut self, row: usize, start_col: usize, end_col: usize) {
+        let start = row * self.width + start_col;
+        let end = start + (end_col - start_col);
+        for byte in self.buffer[start..end].iter_mut() {
+            *byte = !*byte;
+        }
+    }
+
+    ///
     /// Fill the entire display with a Pixel
     ///
     fn fill(&mut self, colour: Pixel) {
@@ -221,6 +240,24 @@ impl Canvas<Pixel> for MonochromeCanvas {
 
         let start = row * self.width;
         let end = start + self.width;
+        for byte in self.buffer[start..end].iter_mut() {
+            *byte = value;
+        }
+
+        self.dirty = true;
+    }
+
+    ///
+    /// Fill the entire canvas with a single colour
+    ///
+    fn fill_rows(&mut self, start_row: usize, end_row: usize, colour: Pixel) {
+        let value = match colour {
+            Pixel::On => 0xFFu8,
+            Pixel::Off => 0x00u8,
+        };
+
+        let start = start_row * self.width;
+        let end = end_row * self.width;
         for byte in self.buffer[start..end].iter_mut() {
             *byte = value;
         }
@@ -270,20 +307,37 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     /// Print single character
     ///
-    fn print_char(&mut self, c: char, row: usize, col: usize, colour: Pixel) {
+    fn print_char(&mut self, c: char, row: usize, col: usize, colour: Pixel) -> usize {
         let raw = c as usize;
         if raw < 0x20 || raw > 0x7F {
-            return;
+            return 0;
         }
-        let char_idx = (raw - 0x20) * FONT_5X6_WIDTH;
-        for slice in 0..FONT_5X6_WIDTH {
+        let char_idx = (raw - 0x20);
+        let (width, glyph) = FONT_5[char_idx];
+        for slice in 0..(width as usize) {
             self.buffer[(row * self.width) + col + slice] = match colour {
-                Pixel::On => FONT_5X6[char_idx + slice],
-                Pixel::Off => !FONT_5X6[char_idx + slice],
+                Pixel::On => glyph[slice] << 2,
+                Pixel::Off => !(glyph[slice] << 2),
             }
         }
         self.dirty = true;
+        width as usize
     }
+
+    // fn print_char(&mut self, c: char, row: usize, col: usize, colour: Pixel) {
+    //     let raw = c as usize;
+    //     if raw < 0x20 || raw > 0x7F {
+    //         return;
+    //     }
+    //     let char_idx = (raw - 0x20) * FONT_5X6_WIDTH;
+    //     for slice in 0..FONT_5X6_WIDTH {
+    //         self.buffer[(row * self.width) + col + slice] = match colour {
+    //             Pixel::On => FONT_5X6[char_idx + slice],
+    //             Pixel::Off => !FONT_5X6[char_idx + slice],
+    //         }
+    //     }
+    //     self.dirty = true;
+    // }
 
     ///
     /// Vertical scroll the rows in a particular direction

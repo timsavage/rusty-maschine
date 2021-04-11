@@ -31,7 +31,6 @@ impl TextPanel {
         self.text = String::from(text);
 
         // Calculate size
-        let lines = self.text.lines();
         self.text_size = (
             self.text.chars().filter(|&c| c == '\n').count() + 1,
             self.text.lines().map(|x| x.len()).max().unwrap(),
@@ -54,12 +53,19 @@ impl Control for TextPanel {
         self.dirty = true;
     }
 
+    fn set_repaint(&mut self) {
+        self.dirty = true;
+    }
+
     fn paint(&mut self, canvas: &mut MonochromeCanvas, row: usize, col: usize) {
         if self.dirty {
             let height = std::cmp::min(self.control_size.0, self.text_size.0);
             let v_scroll = self.scroll_pos.0;
 
-            for (mut idx, line) in self.text.lines().enumerate() {
+            // Clear background
+            canvas.fill_rows(row, row + self.control_size.0, Pixel::Off);
+
+            for (idx, line) in self.text.lines().enumerate() {
                 if idx < v_scroll { continue };
                 if idx >= height + v_scroll { break };
                 let current_row = row + idx - v_scroll;
@@ -76,7 +82,7 @@ impl EventHandler for TextPanel {
     fn handle(&mut self, event: &Event) -> bool {
         match event {
             Event::EncoderChange(_encoder, direction, _shift) => {
-                let mut v_scroll = self.scroll_pos.0;
+                let v_scroll = self.scroll_pos.0;
                 let text_height = self.text_size.0;
                 let height = self.control_size.0;
 
