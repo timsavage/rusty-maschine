@@ -1,9 +1,8 @@
 ///
 /// # Display interface
 ///
-use super::font::{FONT_5X6, FONT_5X6_WIDTH};
+use super::font::FONT_NX5;
 use crate::events::Direction;
-use crate::gui::font::FONT_5;
 use std::cmp::{max, min};
 
 ///
@@ -313,7 +312,7 @@ impl Canvas<Pixel> for MonochromeCanvas {
             return 0;
         }
         let char_idx = (raw - 0x20);
-        let (width, glyph) = FONT_5[char_idx];
+        let (width, glyph) = FONT_NX5[char_idx];
         for slice in 0..(width as usize) {
             self.buffer[(row * self.width) + col + slice] = match colour {
                 Pixel::On => glyph[slice] << 2,
