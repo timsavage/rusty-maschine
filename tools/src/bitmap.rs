@@ -5,10 +5,8 @@
 ///
 /// Will ignore colours space info and inverts the pixel buffer to set the origin to the top left.
 ///
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
-use core::mem;
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::fmt::Formatter;
-use std::fs::File;
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 ///
@@ -200,14 +198,14 @@ fn read_pixel_data(
     reader: &mut Cursor<Vec<u8>>,
     offset: u32,
     dib_header: &DIBHeader,
-) -> Result<(Vec<Colour>), Error> {
+) -> Result<Vec<Colour>, Error> {
     let mut data: Vec<Colour> = Vec::with_capacity(dib_header.pixel_data_size());
 
     reader.seek(SeekFrom::Start(offset as u64))?;
 
     let mut pixels = [0u8; 3];
-    for y in 0..dib_header.height {
-        for x in 0..dib_header.width {
+    for _ in 0..dib_header.height {
+        for _ in 0..dib_header.width {
             reader.read(&mut pixels)?;
             data.push(Colour {
                 red: pixels[2],
