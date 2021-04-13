@@ -95,3 +95,14 @@ pub trait EventTask {
     ///
     fn tick(&mut self, context: &mut EventContext) -> Result<(), Error>;
 }
+
+/// Handle events
+pub trait EventHandler {
+    /// Handle event and return if it was handled.
+    ///
+    /// # Arguments
+    ///
+    /// * `event` - A reference to the event to be handled
+    ///
+    fn handle(&mut self, event: &Event) -> bool;
+}

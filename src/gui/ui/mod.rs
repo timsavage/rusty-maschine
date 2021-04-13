@@ -3,21 +3,11 @@ mod list_panel;
 mod tab_panel;
 mod text_panel;
 
-use crate::events::Event;
+use crate::events::{Event, EventHandler};
 use crate::gui::display::MonochromeCanvas;
 pub use list_panel::ListPanel;
 pub use tab_panel::TabPanel;
 pub use text_panel::TextPanel;
-
-pub trait EventHandler {
-    /// Handle event and return if it was handled.
-    ///
-    /// # Arguments
-    ///
-    /// * `event` - A reference to the event to be handled
-    ///
-    fn handle(&mut self, event: &Event) -> bool;
-}
 
 /// Basic control trait
 pub trait Control: EventHandler {
@@ -70,9 +60,7 @@ impl<T: Control> Surface<T> {
     }
 
     /// Handle events
-    pub fn handle(&mut self, event: &Event) {
-        if self.child.is_some() {
-            self.child.as_mut().unwrap().handle(&event);
-        }
+    pub fn handle(&mut self, event: &Event) -> bool {
+        return self.child.as_mut().map_or(false, |c| c.handle(&event));
     }
 }
