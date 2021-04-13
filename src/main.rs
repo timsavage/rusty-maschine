@@ -4,9 +4,8 @@ use crate::gui::ui::Surface;
 use colour::Colour;
 use controller::Controller;
 use devices::get_device;
-use events::{Event, EventContext, EventTask};
+use events::{Event, EventContext, EventHandler, EventTask};
 use gui::display::Canvas;
-use gui::logo;
 use gui::ui::{ListPanel, TabPanel, TextPanel};
 
 mod colour;
@@ -15,6 +14,7 @@ mod devices;
 mod error;
 mod events;
 mod gui;
+mod pad;
 
 fn setup_ui(height: usize, width: usize) -> Surface<TabPanel> {
     // let logo = MonochromeCanvas::from_buffer(128, 64, &logo::LOGO);
@@ -52,6 +52,7 @@ fn main() {
     let hid_api = HidApi::new().unwrap();
     let mut ctlr = get_device(&hid_api).unwrap();
     let mut surface = setup_ui(ctlr.display.height(), ctlr.display.width());
+    let mut rainbow = pad::Rainbow::new();
 
     loop {
         // Paint the surface
@@ -61,23 +62,14 @@ fn main() {
 
         // Allow controller to do work and update any events
         ctlr.tick(&mut context).unwrap();
+        rainbow.render(&mut ctlr);
 
         // Handle any generated events
         while !context.events.is_empty() {
             let event = context.events.pop_front().unwrap();
-            surface.handle(&event);
 
-            match event {
-                Event::PadChange(pad, velocity, shift) => {
-                    let colour = if shift {
-                        Colour::WHITE
-                    } else {
-                        Colour::new(velocity, 0, 0)
-                    };
-                    ctlr.set_pad_led(pad, colour);
-                }
-                _ => {}
-            }
+            surface.handle(&event);
+            rainbow.handle(&event);
         }
     }
 }
