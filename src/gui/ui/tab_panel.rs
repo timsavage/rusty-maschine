@@ -71,7 +71,7 @@ impl TabPanel {
         self.current = idx;
         self.dirty = true;
 
-        let mut tab = &mut self.tabs[idx];
+        let tab = &mut self.tabs[idx];
         if tab.is_some() {
             let tab: &mut Tab = &mut tab.as_mut().unwrap();
             tab.control.set_repaint();
@@ -119,7 +119,7 @@ impl EventHandler for TabPanel {
 impl Control for TabPanel {
     fn set_size(&mut self, height: usize, width: usize) {
         self.size = (height, width);
-        for (idx, tab) in self.tabs.iter_mut().enumerate() {
+        for (_, tab) in self.tabs.iter_mut().enumerate() {
             if tab.is_some() {
                 let tab: &mut Tab = &mut tab.as_mut().unwrap();
                 tab.control.set_size(height - 1, width);

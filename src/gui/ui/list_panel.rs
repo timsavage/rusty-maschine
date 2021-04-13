@@ -1,4 +1,4 @@
-use crate::events::{Button, Direction, Event};
+use crate::events::{Direction, Event};
 use crate::gui::display::{Canvas, MonochromeCanvas, Pixel};
 use crate::gui::ui::{Control, EventHandler};
 
@@ -46,7 +46,7 @@ impl<T> ListPanel<T> {
 impl<T> EventHandler for ListPanel<T> {
     fn handle(&mut self, event: &Event) -> bool {
         match event {
-            Event::EncoderChange(_, direction, shift) => match direction {
+            Event::EncoderChange(_, direction, _) => match direction {
                 Direction::Up => {
                     self.set_current(if self.current == 0 {
                         self.list.len() - 1
@@ -81,7 +81,7 @@ impl<T> Control for ListPanel<T> {
             let start = self.offset;
             let end = std::cmp::min(self.control_size.0 + self.offset, self.list.len());
 
-            for (idx, (key, text)) in self.list[start..end].iter().enumerate() {
+            for (idx, (_, text)) in self.list[start..end].iter().enumerate() {
                 let idx = idx;
                 canvas.print(text.as_str(), idx + row, col + 1, Pixel::On);
                 if (idx + self.offset) == self.current {

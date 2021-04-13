@@ -311,7 +311,7 @@ impl Canvas<Pixel> for MonochromeCanvas {
         if raw < 0x20 || raw > 0x7F {
             return 0;
         }
-        let char_idx = (raw - 0x20);
+        let char_idx = raw - 0x20;
         let (width, glyph) = FONT_NX5[char_idx];
         for slice in 0..(width as usize) {
             self.buffer[(row * self.width) + col + slice] = match colour {
@@ -322,21 +322,6 @@ impl Canvas<Pixel> for MonochromeCanvas {
         self.dirty = true;
         width as usize
     }
-
-    // fn print_char(&mut self, c: char, row: usize, col: usize, colour: Pixel) {
-    //     let raw = c as usize;
-    //     if raw < 0x20 || raw > 0x7F {
-    //         return;
-    //     }
-    //     let char_idx = (raw - 0x20) * FONT_5X6_WIDTH;
-    //     for slice in 0..FONT_5X6_WIDTH {
-    //         self.buffer[(row * self.width) + col + slice] = match colour {
-    //             Pixel::On => FONT_5X6[char_idx + slice],
-    //             Pixel::Off => !FONT_5X6[char_idx + slice],
-    //         }
-    //     }
-    //     self.dirty = true;
-    // }
 
     ///
     /// Vertical scroll the rows in a particular direction
