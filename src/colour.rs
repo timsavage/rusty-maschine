@@ -1,3 +1,5 @@
+use rand::{thread_rng, Rng};
+
 ///
 /// Colour definition
 ///
@@ -26,7 +28,16 @@ impl Colour {
 
     /// Construct a new colour
     pub fn new(r: u8, g: u8, b: u8) -> Self {
-        Colour { r, g, b }
+        Self { r, g, b }
+    }
+
+    pub fn random() -> Self {
+        let mut rng = rand::thread_rng();
+        Self {
+            r: rng.gen::<u8>(),
+            g: rng.gen::<u8>(),
+            b: rng.gen::<u8>(),
+        }
     }
 
     /// "Monochrome" representation of the colour
